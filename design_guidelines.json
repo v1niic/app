@@ -1,0 +1,232 @@
+{
+  "project_name": "VaiDeBike Fortaleza",
+  "app_archetype": "The Performance Pro & Urban Safety Companion",
+  "locale": "pt-BR",
+  "design_direction": {
+    "emotional_tone": "Energético, confiável, tático e comunitário. Foco na segurança viária urbana com dinamismo cearense.",
+    "theme_preference": "dark_default_with_tactical_vibrancy",
+    "rationale": "App de navegação e GPS em tempo real para ciclistas requer alto contraste, legibilidade sob sol forte ou luz noturna, estilo tático e esportivo (Deep Obsidian #0A0F1D com Verde Ciclovia #10B981 e Laranja Alerta #F97316)."
+  },
+  "typography": {
+    "heading_font": "Outfit Variable",
+    "body_font": "Plus Jakarta Sans Variable",
+    "mono_font": "JetBrains Mono Variable",
+    "css_font_imports": [
+      "@import \"@fontsource-variable/outfit\";",
+      "@import \"@fontsource-variable/plus-jakarta-sans\";",
+      "@import \"@fontsource-variable/jetbrains-mono\";"
+    ],
+    "scale_px": {
+      "display": 56,
+      "h1": 42,
+      "h2": 32,
+      "h3": 24,
+      "body": 16,
+      "caption": 14
+    },
+    "typesetting_rules": {
+      "headings": "font-black tracking-tight leading-tight uppercase-accents",
+      "body": "font-normal leading-relaxed text-slate-200",
+      "labels": "uppercase font-semibold tracking-wider text-xs",
+      "metrics": "font-mono font-bold tracking-tight"
+    }
+  },
+  "colors": {
+    "surfaces": [
+      {
+        "name": "page",
+        "kind": "solid",
+        "bg": "#090D16",
+        "on_bg": "#F8FAFC",
+        "on_bg_muted": "#94A3B8",
+        "roles": {
+          "link": "#38BDF8",
+          "error": "#EF4444",
+          "success": "#10B981",
+          "warning": "#F59E0B"
+        }
+      },
+      {
+        "name": "panel",
+        "kind": "solid",
+        "bg": "#0F172A",
+        "on_bg": "#F8FAFC",
+        "on_bg_muted": "#94A3B8",
+        "roles": {
+          "link": "#38BDF8",
+          "error": "#F87171",
+          "success": "#34D399",
+          "warning": "#FBBF24"
+        }
+      },
+      {
+        "name": "panel_elevated",
+        "kind": "solid",
+        "bg": "#1E293B",
+        "on_bg": "#FFFFFF",
+        "on_bg_muted": "#CBD5E1",
+        "roles": {
+          "link": "#38BDF8",
+          "error": "#F87171",
+          "success": "#34D399"
+        }
+      },
+      {
+        "name": "inverse",
+        "kind": "solid",
+        "bg": "#F1F5F9",
+        "on_bg": "#090D16",
+        "on_bg_muted": "#475569",
+        "roles": {
+          "link": "#0284C7",
+          "error": "#DC2626",
+          "success": "#059669"
+        }
+      },
+      {
+        "name": "hero",
+        "kind": "image",
+        "contrast_against": "#0B1120",
+        "guarantee": "scrim: linear-gradient(to right, rgba(9, 13, 22, 0.95) 0%, rgba(9, 13, 22, 0.8) 60%, rgba(9, 13, 22, 0.5) 100%)",
+        "on_bg": "#F8FAFC",
+        "on_bg_muted": "#94A3B8",
+        "roles": {
+          "link": "#38BDF8",
+          "error": "#EF4444",
+          "success": "#10B981"
+        }
+      },
+      {
+        "name": "map_overlay_card",
+        "kind": "solid",
+        "bg": "#0F172ACC",
+        "on_bg": "#F8FAFC",
+        "on_bg_muted": "#94A3B8"
+      },
+      {
+        "name": "badge_success",
+        "kind": "solid",
+        "bg": "#064E3B",
+        "on_bg": "#A7F3D0",
+        "on_bg_muted": "#6EE7B7"
+      },
+      {
+        "name": "badge_warning",
+        "kind": "solid",
+        "bg": "#78350F",
+        "on_bg": "#FDE68A",
+        "on_bg_muted": "#FCD34D"
+      },
+      {
+        "name": "badge_danger",
+        "kind": "solid",
+        "bg": "#7F1D1D",
+        "on_bg": "#FECACA",
+        "on_bg_muted": "#FCA5A5"
+      }
+    ],
+    "accent": "#10B981",
+    "on_accent": "#022C22",
+    "accent_secondary": "#F97316",
+    "on_accent_secondary": "#431407",
+    "accent_cyber": "#06B6D4",
+    "border_tactical": "#334155"
+  },
+  "entry_surfaces": {
+    "/": "split hero & interactive live map preview — brand value proposition + CTA on the left, live Fortaleza radar view with obstacle alerts on the right",
+    "/map": "immersive full-screen GPS interactive map with collapsible floating tactical HUD, obstacle reporter tool and route layers",
+    "/missions": "high-density gamified mission grid with progression rings, level status, seal showcases and leaderboard",
+    "/profile": "tactical cyclist stats dashboard with km totals, report ledger, unlocked badges (selos/emblemas) and gear settings",
+    "/login": "branded split login — Fortaleza cyclist safety pledge on left with hero visual, auth form on right",
+    "/register": "branded split register — cyclist onboarding & level 1 badge promise on left, registration form on right"
+  },
+  "visual_enhancers": {
+    "tactical_hud": "1px emerald-500/20 & amber-500/20 borders with sharp corners, subtle inner glows and monospace telemetries",
+    "map_markers": "Custom pulsating SVG markers for Buraco (vermelho), Obra (laranja), Trecho Inacabado (amarelo), Ciclovia Segura (verde esmeralda)",
+    "gamification_selos": "Concentric metallic rings, glowing icons, animated unlock sparkles using Lucide icons + motion/react",
+    "glassmorphism": "Used only on floating map HUD controls: bg-slate-900/80 backdrop-blur-md border border-slate-700/50 shadow-2xl"
+  },
+  "motion": {
+    "transitions": "transition-transform duration-200 ease-out, transition-colors duration-150 ease-in-out, opacity duration-200 ease-out",
+    "card_hover": "hover:-translate-y-1 hover:border-emerald-500/40 hover:shadow-[0_8px_30px_rgb(16,185,129,0.12)]",
+    "radar_pulse": "animate-ping for user live GPS location beacon",
+    "reduced_motion": "Wrap non-essential motion with motion/react respecting prefers-reduced-motion"
+  },
+  "accessibility": {
+    "wcag_level": "WCAG AA (APCA compliant)",
+    "contrast_standards": "All normal text >= 4.5:1; large headings >= 3.0:1 against designated surface backgrounds",
+    "keyboard_nav": "Full tab order with visible ring-2 ring-emerald-400 focus offsets",
+    "data_testids": "MANDATORY on all interactive elements (buttons, inputs, filters, map controls, tabs, modals)"
+  },
+  "image_urls": {
+    "hero_cyclist": {
+      "url": "https://images.unsplash.com/photo-1523815378073-a43ae3fbf36a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwzfHxjeWNsaXN0JTIwY2l0eSUyMHN0cmVldCUyMGJpa2V8ZW58MHx8fHwxNzkxMjM3MDQxfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Ciclista urbano pedalando com velocidade e foco na cidade",
+      "category": "hero_background"
+    },
+    "fortaleza_beira_mar": {
+      "url": "https://images.unsplash.com/photo-1560971923-16c232d1ee89?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NjV8MHwxfHNlYXJjaHwxfHxmb3J0YWxlemElMjBicmF6aWwlMjBjb2FzdGxpbmUlMjBvY2VhbnxlbnwwfHx8fDE3OTEyMzcwNDF8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Orla de Fortaleza (Beira-Mar e Praia de Iracema) - polo de ciclovias",
+      "category": "location_context"
+    },
+    "safety_helmet": {
+      "url": "https://images.unsplash.com/photo-1601971360277-7b4c8aa60894?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NjZ8MHwxfHNlYXJjaHwzfHxjeWNsaXN0JTIwaGVsbWV0JTIwc2FmZXR5JTIwdXJiYW58ZW58MHx8fHwxNzkxMjM3MDQxfDA&ixlib=rb-4.1.0&q=85",
+      "description": "Equipamento de segurança e capacete urbano para ciclistas",
+      "category": "safety_features"
+    }
+  },
+  "routes_and_components": {
+    "routes": [
+      {"path": "/", "name": "Home / Landing & Quick Radar", "file": "frontend/src/pages/Home.tsx"},
+      {"path": "/map", "name": "GPS & Mapa Cicloviário de Fortaleza", "file": "frontend/src/pages/MapPage.tsx"},
+      {"path": "/missions", "name": "Missões, Selos & Conquistas", "file": "frontend/src/pages/MissionsPage.tsx"},
+      {"path": "/profile", "name": "Perfil & Estatísticas do Ciclista", "file": "frontend/src/pages/ProfilePage.tsx"},
+      {"path": "/login", "name": "Login", "file": "frontend/src/pages/Login.tsx"},
+      {"path": "/register", "name": "Cadastro de Ciclista", "file": "frontend/src/pages/Register.tsx"}
+    ],
+    "key_components": [
+      {"name": "Navbar", "path": "frontend/src/components/layout/Navbar.tsx", "description": "Barra superior com logo VaiDeBike, status GPS, links rápidos, menu usuário e botão 'Reportar Obstáculo'"},
+      {"name": "FortalezaMap", "path": "frontend/src/components/map/FortalezaMap.tsx", "description": "Leaflet map integrado com camadas de ciclovias (Beira-Mar, Aguanambi, Domingos Olímpio, Washington Soares, Santos Dumont) + marcadores de buracos, obras e trechos inacabados"},
+      {"name": "ReportObstacleModal", "path": "frontend/src/components/map/ReportObstacleModal.tsx", "description": "Modal tático para adicionar novo alerta com seleção de tipo (buraco, obra, inacabado, iluminação, outros), gravidade (baixa, média, alta), foto/descrição e coordenadas do mapa"},
+      {"name": "LiveGPSTracker", "path": "frontend/src/components/map/LiveGPSTracker.tsx", "description": "HUD de navegação em tempo real com velocímetro virtual, distância ao próximo obstáculo e aviso sonoro/visual de aproximação"},
+      {"name": "BadgeCard", "path": "frontend/src/components/gamification/BadgeCard.tsx", "description": "Card de selo/emblema com efeito holográfico, nível de raridade, data de conquista e barra de progresso"},
+      {"name": "MissionsTracker", "path": "frontend/src/components/gamification/MissionsTracker.tsx", "description": "Lista de missões ativas (ex: 'Pedalar 20km na Beira-Mar', 'Reportar 3 obstáculos', 'Pedalar 5 dias seguidos')"},
+      {"name": "UserStatsCard", "path": "frontend/src/components/profile/UserStatsCard.tsx", "description": "Grid de estatísticas táticas: Km pedalados, Obstáculos reportados, Vidas salvas (impacto), Selos conquistados"}
+    ]
+  },
+  "instructions_to_main_agent": {
+    "package_installs": [
+      "cd /app/frontend && yarn add leaflet @types/leaflet canvas-confetti @types/canvas-confetti"
+    ],
+    "css_setup": "Import leaflet/dist/leaflet.css in main.tsx or App.tsx. Include Outfit Variable and Plus Jakarta Sans Variable in index.css.",
+    "fortaleza_routes_seed": "Seed authentic Fortaleza cycling arteries (Ciclovia da Beira-Mar, Ciclofaixa da Av. Washington Soares, Ciclovia da Av. Aguanambi, Ciclovia da Av. Domingos Olímpio, Ciclofaixa da Santos Dumont, Ciclovia da Godofredo Maciel, etc.) with coordinates in GeoJSON / Leaflet polyline format.",
+    "obstacle_categories": [
+      {"id": "buraco", "label": "Buraco / Asfalto Ruim", "color": "#EF4444", "icon": "AlertTriangle"},
+      {"id": "obra", "label": "Obra na Pista", "color": "#F97316", "icon": "Hammer"},
+      {"id": "trecho_inacabado", "label": "Ciclovia Inacabada / Interrompida", "color": "#FBBF24", "icon": "Construction"},
+      {"id": "falta_iluminacao", "label": "Falta de Iluminação / Risco Noturno", "color": "#A855F7", "icon": "Moon"},
+      {"id": "outros", "label": "Outro Obstáculo", "color": "#38BDF8", "icon": "Info"}
+    ],
+    "gamification_seed": {
+      "badges": [
+        {"id": "calouro_pedal", "name": "Calouro do Pedal", "desc": "Cadastro realizado no VaiDeBike Fortaleza", "tier": "Bronze", "icon": "Bike"},
+        {"id": "olho_de_aguia", "name": "Olho de Águia", "desc": "Reportou o 1º obstáculo na via", "tier": "Prata", "icon": "Eye"},
+        {"id": "guardiao_da_beira_mar", "name": "Guardião da Beira-Mar", "desc": "Pedalou 25km nas ciclovias litorâneas", "tier": "Ouro", "icon": "Waves"},
+        {"id": "mestre_do_asfalto", "name": "Mestre do Asfalto", "desc": "Ajudou a mapear 10 pontos de alerta", "tier": "Platina", "icon": "ShieldCheck"},
+        {"id": "centuriao_cearense", "name": "Centurião Cearense", "desc": "Completou 100km monitorados", "tier": "Diamante", "icon": "Trophy"}
+      ],
+      "missions": [
+        {"id": "m1", "title": "Primeiro Alerta Cidadão", "desc": "Ajude outros ciclistas reportando 1 obstáculo ou obra", "target": 1, "reward_xp": 150, "badge_id": "olho_de_aguia"},
+        {"id": "m2", "title": "Tour das Ciclovias", "desc": "Ative o modo GPS e percorra 15km em Fortaleza", "target": 15, "reward_xp": 300, "badge_id": "guardiao_da_beira_mar"},
+        {"id": "m3", "title": "Sentinela Noturna", "desc": "Reporte ou confirme 3 trechos com problemas de segurança", "target": 3, "reward_xp": 250, "badge_id": "mestre_do_asfalto"}
+      ]
+    },
+    "gps_alert_logic": "Simulate or use navigator.geolocation to detect distance (Haversine formula). When distance to any obstacle < 200m, trigger a glowing alert banner and optional sound/speech alert ('Atenção: Buraco a 150 metros'). Provide a simulated GPS demo button for easy testing without moving physically.",
+    "testing_attributes": "Include data-testid on every interactive button, map marker, input, filter, tab and alert modal."
+  },
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "contrast_rules": "Always ensure text on dark backgrounds is at least slate-100 or slate-200. Muted labels must be at least slate-400 (minimum 4.5:1 ratio).",
+    "mobile_readiness": "Map controls and GPS tracker HUD must collapse gracefully on mobile screens with bottom navigation sheet support.",
+    "real_time_sync": "Use React Query with refetchInterval (e.g. 10000ms) or optimistic updates so new obstacles show up on the map immediately."
+  }
+}

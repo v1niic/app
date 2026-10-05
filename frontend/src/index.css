@@ -1,0 +1,255 @@
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/jetbrains-mono";
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* VaiDeBike Fortaleza — dark obsidian tático (dark-by-default: os mesmos tokens em :root e .dark) */
+:root {
+    --background: #090D16;
+    --foreground: #F8FAFC;
+    --card: #0F172A;
+    --card-foreground: #F8FAFC;
+    --popover: #0F172A;
+    --popover-foreground: #F8FAFC;
+    --primary: #10B981;
+    --primary-foreground: #022C22;
+    --secondary: #1E293B;
+    --secondary-foreground: #F8FAFC;
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+    --accent: #1E293B;
+    --accent-foreground: #F8FAFC;
+    --destructive: #EF4444;
+    --border: #334155;
+    --input: #334155;
+    --ring: #10B981;
+    --chart-1: #10B981;
+    --chart-2: #F97316;
+    --chart-3: #FBBF24;
+    --chart-4: #06B6D4;
+    --chart-5: #A855F7;
+    --radius: 0.5rem;
+    --sidebar: #0F172A;
+    --sidebar-foreground: #F8FAFC;
+    --sidebar-primary: #10B981;
+    --sidebar-primary-foreground: #022C22;
+    --sidebar-accent: #1E293B;
+    --sidebar-accent-foreground: #F8FAFC;
+    --sidebar-border: #334155;
+    --sidebar-ring: #10B981;
+}
+
+.dark {
+    --background: #090D16;
+    --foreground: #F8FAFC;
+    --card: #0F172A;
+    --card-foreground: #F8FAFC;
+    --popover: #0F172A;
+    --popover-foreground: #F8FAFC;
+    --primary: #10B981;
+    --primary-foreground: #022C22;
+    --secondary: #1E293B;
+    --secondary-foreground: #F8FAFC;
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+    --accent: #1E293B;
+    --accent-foreground: #F8FAFC;
+    --destructive: #EF4444;
+    --border: #334155;
+    --input: #334155;
+    --ring: #10B981;
+    --chart-1: #10B981;
+    --chart-2: #F97316;
+    --chart-3: #FBBF24;
+    --chart-4: #06B6D4;
+    --chart-5: #A855F7;
+    --sidebar: #0F172A;
+    --sidebar-foreground: #F8FAFC;
+    --sidebar-primary: #10B981;
+    --sidebar-primary-foreground: #022C22;
+    --sidebar-accent: #1E293B;
+    --sidebar-accent-foreground: #F8FAFC;
+    --sidebar-border: #334155;
+    --sidebar-ring: #10B981;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+  ::selection {
+    background: rgba(16, 185, 129, 0.35);
+    }
+}
+
+/* ---- Marcadores customizados do mapa (Leaflet divIcon) ---- */
+.vdb-marker-wrap,
+.vdb-user-wrap {
+  background: transparent !important;
+  border: none !important;
+}
+
+.vdb-marker {
+  --vdb-c: #ef4444;
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.vdb-marker-dot {
+  position: absolute;
+  inset: 5px;
+  border-radius: 9999px;
+  background: var(--vdb-c);
+  box-shadow: 0 0 8px var(--vdb-c);
+}
+
+.vdb-marker-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid var(--vdb-c);
+  animation: vdb-pulse 2s ease-out infinite;
+}
+
+.vdb-marker-high .vdb-marker-pulse {
+  animation-duration: 1s;
+}
+
+.vdb-user {
+  position: relative;
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.vdb-user-dot {
+  position: absolute;
+  inset: 5px;
+  border-radius: 9999px;
+  background: #34d399;
+  box-shadow: 0 0 10px #10b981;
+}
+
+.vdb-user-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid #34d399;
+  animation: vdb-pulse 1.6s ease-out infinite;
+}
+
+@keyframes vdb-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vdb-marker-pulse,
+  .vdb-user-pulse {
+    animation: none;
+  }
+}
+
+/* ---- Leaflet sobre o tema escuro ---- */
+.leaflet-container {
+  background: #0b1120;
+  font-family: inherit;
+}
+
+/* Inverte os tiles claros do OSM em mapa noturno; marcadores/linhas ficam em outros panes, sem afetação */
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(190deg) saturate(0.65) brightness(0.92) contrast(0.9);
+}
+
+.leaflet-control-attribution {
+  background: rgba(9, 13, 22, 0.75) !important;
+  color: #94a3b8 !important;
+  font-size: 10px;
+}
+
+.leaflet-control-attribution a {
+  color: #38bdf8 !important;
+}
+
+.leaflet-bar a {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+.leaflet-bar a:hover {
+  background: #1e293b !important;
+}
+
+.leaflet-tooltip {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45) !important;
+}
+
+.leaflet-tooltip-top::before {
+  border-top-color: #334155 !important;
+}
