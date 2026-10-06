@@ -1,0 +1,22 @@
+{
+  "services": {
+    "frontend": {
+      "root": "frontend/", // Ajuste para a pasta real do seu app web
+      "framework": "nextjs"
+    },
+    "backend": {
+      "root": "backend/",  // Ajuste para a pasta real do seu backend
+      "framework": "fastapi"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": { "service": "backend" }
+    },
+    {
+      "source": "/(.*)",
+      "destination": { "service": "frontend" }
+    }
+  ]
+}
