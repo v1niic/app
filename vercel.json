@@ -1,11 +1,11 @@
 {
   "services": {
     "frontend": {
-      "root": "frontend/", // Ajuste para a pasta real do seu app web
+      "root": "frontend/", 
       "framework": "nextjs"
     },
     "backend": {
-      "root": "backend/",  // Ajuste para a pasta real do seu backend
+      "root": "backend/",  
       "framework": "fastapi"
     }
   },
