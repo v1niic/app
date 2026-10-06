@@ -15,22 +15,88 @@ interface FortalezaMapProps {
   bikeLanes: BikeLane[];
   obstacles: Obstacle[];
   userPos?: { lat: number; lng: number } | null;
+  /** rumo do ciclista em graus (0 = norte); gira a seta de navegação */
+  heading?: number | null;
+  /** modo guiado: seta de navegação, zoom alto e sem o círculo de radar */
+  navigating?: boolean;
+  /** a câmera acompanha o ciclista suavemente (como no Uber/99) */
+  follow?: boolean;
+  /** o usuário arrastou o mapa com o dedo/mouse — o pai deve desligar o `follow` */
+  onUserPan?: () => void;
+  /** rota (trecho que falta percorrer) em [lat, lng] */
+  route?: [number, number][] | null;
+  /** ids de obstáculos que ficam no caminho da rota (ganham destaque) */
+  routeObstacleIds?: string[];
+  /** enquadra a rota inteira na tela quando ela muda (pré-visualização) */
+  fitRoute?: boolean;
+  destination?: { lat: number; lng: number } | null;
+  /** altura (px) coberta pelo painel inferior — usada para centralizar no espaço visível */
+  bottomInset?: number;
   pickMode?: boolean;
   onPick?: (lat: number, lng: number) => void;
+  /** segurar o dedo/mouse ~0,5 s no mapa (escolher destino) */
+  onLongPress?: (lat: number, lng: number) => void;
   onSelectObstacle?: (o: Obstacle) => void;
   focus?: FocusRequest | null;
   className?: string;
 }
 
 const FORTALEZA_CENTER: L.LatLngExpression = [-3.7319, -38.5267];
+const LONG_PRESS_MS = 550;
+const POS_ANIM_MS = 900;
 
-/** Mapa escuro de Fortaleza: camadas de ciclovias/ciclofaixas + marcadores pulsantes de obstáculos + beacon de GPS. */
+/** Menor giro entre dois ângulos — evita a seta dar a volta inteira ao passar de 359° para 1°. */
+function nextAngle(prev: number, target: number): number {
+  const delta = ((target - prev + 540) % 360) - 180;
+  return prev + delta;
+}
+
+function obstacleIcon(o: Obstacle, onRoute: boolean): L.DivIcon {
+  const color = OBSTACLE_TYPES[o.type].color;
+  const high = o.severity === "alta" ? " vdb-marker-high" : "";
+  const route = onRoute ? " vdb-marker-route" : "";
+  return L.divIcon({
+    className: "vdb-marker-wrap",
+    html: `<span class="vdb-marker${high}${route}" style="--vdb-c:${color}" data-testid="obstacle-marker" data-obstacle-type="${o.type}" data-obstacle-id="${o.id}"><span class="vdb-marker-dot"></span><span class="vdb-marker-pulse"></span></span>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
+const USER_ICON = L.divIcon({
+  className: "vdb-user-wrap",
+  html: `<span class="vdb-nav vdb-nav--still" data-testid="gps-user-beacon"><span class="vdb-nav-pulse"></span><span class="vdb-nav-dot"></span><svg class="vdb-nav-arrow" viewBox="0 0 44 44" aria-hidden="true"><path d="M22 4 L36 38 L22 30 L8 38 Z" fill="#10B981" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/></svg></span>`,
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
+const DEST_ICON = L.divIcon({
+  className: "vdb-user-wrap",
+  html: `<span class="vdb-dest" data-testid="nav-destination-pin"><svg viewBox="0 0 32 42" aria-hidden="true"><path d="M16 1C8 1 2 7 2 15c0 10 14 25 14 25s14-15 14-25C30 7 24 1 16 1z" fill="#F97316" stroke="#ffffff" stroke-width="2.5"/><circle cx="16" cy="15" r="5" fill="#ffffff"/></svg></span>`,
+  iconSize: [32, 42],
+  iconAnchor: [16, 40],
+});
+
+/**
+ * Mapa escuro de Fortaleza: ciclovias/ciclofaixas, marcadores de obstáculos, rota de navegação e o ciclista.
+ * Gestos: arrastar, pinça para zoom, duplo toque e segurar para escolher destino (nativos do Leaflet + long-press).
+ */
 export default function FortalezaMap({
   bikeLanes,
   obstacles,
   userPos,
+  heading,
+  navigating,
+  follow,
+  onUserPan,
+  route,
+  routeObstacleIds,
+  fitRoute,
+  destination,
+  bottomInset = 0,
   pickMode,
   onPick,
+  onLongPress,
   onSelectObstacle,
   focus,
   className,
@@ -38,42 +104,155 @@ export default function FortalezaMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const lanesRef = useRef<L.LayerGroup | null>(null);
+  const routeGroupRef = useRef<L.LayerGroup | null>(null);
   const obstaclesRef = useRef<L.LayerGroup | null>(null);
-  const userRef = useRef<L.LayerGroup | null>(null);
-  const pickRef = useRef<{ active: boolean; cb?: (lat: number, lng: number) => void }>({
-    active: false,
-  });
+  const userGroupRef = useRef<L.LayerGroup | null>(null);
+  const routeCasingRef = useRef<L.Polyline | null>(null);
+  const routeLineRef = useRef<L.Polyline | null>(null);
+  const destMarkerRef = useRef<L.Marker | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
+  const userCircleRef = useRef<L.Circle | null>(null);
+  const markersRef = useRef<Map<string, { marker: L.Marker; sig: string }>>(new Map());
+  const obstacleByIdRef = useRef<Map<string, Obstacle>>(new Map());
   const fittedRef = useRef(false);
+
+  // valores "mais recentes" lidos dentro de handlers de longa vida
+  const pickRef = useRef<{ active: boolean; cb?: (lat: number, lng: number) => void }>({ active: false });
+  const onSelectRef = useRef(onSelectObstacle);
+  const onLongPressRef = useRef(onLongPress);
+  const onUserPanRef = useRef(onUserPan);
+  const followRef = useRef(!!follow);
+  const navigatingRef = useRef(!!navigating);
+  const insetRef = useRef(bottomInset);
+  const zoomingRef = useRef(false);
+  const curPosRef = useRef<L.LatLng | null>(null);
+  const animRef = useRef<{ from: L.LatLng; to: L.LatLng; t0: number; raf: number | null } | null>(null);
+  const angleRef = useRef(0);
+
+  useEffect(() => {
+    onSelectRef.current = onSelectObstacle;
+    onLongPressRef.current = onLongPress;
+    onUserPanRef.current = onUserPan;
+    navigatingRef.current = !!navigating;
+    insetRef.current = bottomInset;
+  }, [onSelectObstacle, onLongPress, onUserPan, navigating, bottomInset]);
+
+  /** Centraliza o ciclista no espaço visível (acima do painel inferior; um pouco abaixo do centro ao navegar). */
+  const centerOn = (ll: L.LatLng, animate: boolean, zoom?: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const z = zoom ?? map.getZoom();
+    const shift = insetRef.current / 2 + (navigatingRef.current ? 40 : 0);
+    const target = map.unproject(map.project(ll, z).subtract([0, shift]), z);
+    map.setView(target, z, { animate, duration: 0.6 });
+  };
 
   // inicializa uma única vez (StrictMode remonta — o cleanup remove o mapa)
   useEffect(() => {
     const el = containerRef.current;
     if (!el || mapRef.current) return;
 
-    const map = L.map(el, { center: FORTALEZA_CENTER, zoom: 12, zoomControl: false });
+    const map = L.map(el, {
+      center: FORTALEZA_CENTER,
+      zoom: 12,
+      zoomControl: false,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 90,
+      bounceAtZoomLimits: false,
+    });
     // Tiles do OpenStreetMap, escurecidos por CSS (.leaflet-tile-pane) para o tema tático — sem API key.
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
-    L.control.zoom({ position: "bottomright" }).addTo(map);
+    // No celular o zoom é por pinça/duplo toque — sem botões +/- cobrindo o mapa.
+    if (!L.Browser.mobile) L.control.zoom({ position: "bottomright" }).addTo(map);
 
     lanesRef.current = L.layerGroup().addTo(map);
+    routeGroupRef.current = L.layerGroup().addTo(map);
     obstaclesRef.current = L.layerGroup().addTo(map);
-    userRef.current = L.layerGroup().addTo(map);
+    userGroupRef.current = L.layerGroup().addTo(map);
+
+    const casing = L.polyline([], { color: "#06101F", weight: 12, opacity: 0.9, lineCap: "round", lineJoin: "round" });
+    const line = L.polyline([], { color: "#38BDF8", weight: 6, opacity: 1, lineCap: "round", lineJoin: "round" });
+    casing.addTo(routeGroupRef.current);
+    line.addTo(routeGroupRef.current);
+    routeCasingRef.current = casing;
+    routeLineRef.current = line;
 
     map.on("click", (e: L.LeafletMouseEvent) => {
       if (pickRef.current.active && pickRef.current.cb) pickRef.current.cb(e.latlng.lat, e.latlng.lng);
     });
+    // arrastar com o dedo/mouse = o usuário assumiu a câmera
+    map.on("dragstart", () => {
+      followRef.current = false;
+      onUserPanRef.current?.();
+    });
+    map.on("zoomstart", () => {
+      zoomingRef.current = true;
+    });
+    map.on("zoomend", () => {
+      zoomingRef.current = false;
+    });
+
+    // segurar para escolher destino
+    let lpTimer: ReturnType<typeof setTimeout> | null = null;
+    let lpStart: { x: number; y: number } | null = null;
+    const cancelLongPress = () => {
+      if (lpTimer) clearTimeout(lpTimer);
+      lpTimer = null;
+      lpStart = null;
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (pickRef.current.active || !onLongPressRef.current) return;
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if ((e.target as HTMLElement).closest(".leaflet-control, .leaflet-marker-icon")) return;
+      lpStart = { x: e.clientX, y: e.clientY };
+      lpTimer = setTimeout(() => {
+        lpTimer = null;
+        const ll = map.mouseEventToLatLng(e);
+        navigator.vibrate?.(25);
+        onLongPressRef.current?.(ll.lat, ll.lng);
+      }, LONG_PRESS_MS);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (lpStart && Math.hypot(e.clientX - lpStart.x, e.clientY - lpStart.y) > 10) cancelLongPress();
+    };
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", cancelLongPress);
+    el.addEventListener("pointercancel", cancelLongPress);
+    el.addEventListener("pointerleave", cancelLongPress);
+    // um 2º dedo (pinça) também cancela
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length > 1) cancelLongPress();
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
 
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(el);
     mapRef.current = map;
 
     return () => {
+      cancelLongPress();
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", cancelLongPress);
+      el.removeEventListener("pointercancel", cancelLongPress);
+      el.removeEventListener("pointerleave", cancelLongPress);
+      el.removeEventListener("touchstart", onTouchStart);
+      const anim = animRef.current;
+      if (anim?.raf) cancelAnimationFrame(anim.raf);
+      animRef.current = null;
       ro.disconnect();
       map.remove();
       mapRef.current = null;
+      markersRef.current.clear();
+      userMarkerRef.current = null;
+      userCircleRef.current = null;
+      destMarkerRef.current = null;
+      curPosRef.current = null;
     };
   }, []);
 
@@ -84,14 +263,19 @@ export default function FortalezaMap({
     g.clearLayers();
     for (const lane of bikeLanes) {
       const color = lane.kind === "ciclovia" ? "#10B981" : "#38BDF8";
+      // snapped === false: o servidor ainda não colou a ciclovia nas ruas (poucos pontos ligados em linha reta).
+      // Desenha fraco e pontilhado em vez de um traço grosso e falso cortando quarteirões.
+      const approx = lane.snapped === false;
       L.polyline(lane.coordinates as L.LatLngExpression[], {
         color,
-        weight: 5,
-        opacity: 0.75,
-        dashArray: lane.kind === "ciclofaixa" ? "8 8" : undefined,
+        weight: approx ? 3 : 5,
+        opacity: approx ? 0.4 : 0.8,
+        lineCap: "round",
+        lineJoin: "round",
+        dashArray: approx ? "2 9" : lane.kind === "ciclofaixa" ? "8 8" : undefined,
       })
         .bindTooltip(
-          `<strong>${lane.name}</strong><br/>${lane.kind === "ciclovia" ? "Ciclovia" : "Ciclofaixa"} · ${lane.length_km} km`,
+          `<strong>${lane.name}</strong><br/>${lane.kind === "ciclovia" ? "Ciclovia" : "Ciclofaixa"} · ${lane.length_km} km${approx ? "<br/><em>traçado aproximado</em>" : ""}`,
           { direction: "top" },
         )
         .addTo(g);
@@ -103,46 +287,163 @@ export default function FortalezaMap({
     }
   }, [bikeLanes]);
 
-  // marcadores de obstáculos
+  // marcadores de obstáculos — atualização incremental (sem piscar a cada refetch de 10 s)
   useEffect(() => {
     const g = obstaclesRef.current;
     if (!g) return;
-    g.clearLayers();
+    const onRoute = new Set(routeObstacleIds ?? []);
+    obstacleByIdRef.current = new Map(obstacles.map((o) => [o.id, o]));
+    const seen = new Set<string>();
     for (const o of obstacles) {
-      const color = OBSTACLE_TYPES[o.type].color;
-      const icon = L.divIcon({
-        className: "vdb-marker-wrap",
-        html: `<span class="vdb-marker${o.severity === "alta" ? " vdb-marker-high" : ""}" style="--vdb-c:${color}" data-testid="obstacle-marker" data-obstacle-type="${o.type}" data-obstacle-id="${o.id}"><span class="vdb-marker-dot"></span><span class="vdb-marker-pulse"></span></span>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
-      });
-      L.marker([o.lat, o.lng], { icon })
-        .on("click", () => onSelectObstacle?.(o))
-        .addTo(g);
+      seen.add(o.id);
+      const sig = `${o.type}|${o.severity}|${onRoute.has(o.id) ? 1 : 0}`;
+      const existing = markersRef.current.get(o.id);
+      if (existing) {
+        existing.marker.setLatLng([o.lat, o.lng]);
+        if (existing.sig !== sig) {
+          existing.marker.setIcon(obstacleIcon(o, onRoute.has(o.id)));
+          existing.sig = sig;
+        }
+      } else {
+        const marker = L.marker([o.lat, o.lng], { icon: obstacleIcon(o, onRoute.has(o.id)) })
+          .on("click", () => {
+            const fresh = obstacleByIdRef.current.get(o.id);
+            if (fresh) onSelectRef.current?.(fresh);
+          })
+          .addTo(g);
+        markersRef.current.set(o.id, { marker, sig });
+      }
     }
-  }, [obstacles, onSelectObstacle]);
+    for (const [id, entry] of markersRef.current) {
+      if (!seen.has(id)) {
+        g.removeLayer(entry.marker);
+        markersRef.current.delete(id);
+      }
+    }
+  }, [obstacles, routeObstacleIds]);
 
-  // beacon do ciclista
+  // rota de navegação + destino
   useEffect(() => {
-    const g = userRef.current;
-    if (!g) return;
-    g.clearLayers();
-    if (!userPos) return;
-    const icon = L.divIcon({
-      className: "vdb-user-wrap",
-      html: `<span class="vdb-user" data-testid="gps-user-beacon"><span class="vdb-user-dot"></span><span class="vdb-user-pulse"></span></span>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
+    const map = mapRef.current;
+    const g = routeGroupRef.current;
+    if (!map || !g) return;
+    const pts = (route ?? []) as L.LatLngExpression[];
+    routeCasingRef.current?.setLatLngs(pts);
+    routeLineRef.current?.setLatLngs(pts);
+
+    if (destination) {
+      if (!destMarkerRef.current) {
+        destMarkerRef.current = L.marker([destination.lat, destination.lng], {
+          icon: DEST_ICON,
+          zIndexOffset: 800,
+          interactive: false,
+          keyboard: false,
+        }).addTo(g);
+      } else {
+        destMarkerRef.current.setLatLng([destination.lat, destination.lng]);
+      }
+    } else if (destMarkerRef.current) {
+      g.removeLayer(destMarkerRef.current);
+      destMarkerRef.current = null;
+    }
+  }, [route, destination]);
+
+  // enquadra a rota inteira na pré-visualização (acima do painel inferior)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !fitRoute || !route || route.length < 2) return;
+    followRef.current = false;
+    map.fitBounds(L.latLngBounds(route as L.LatLngTuple[]), {
+      paddingTopLeft: [30, 90],
+      paddingBottomRight: [30, insetRef.current + 30],
+      maxZoom: 17,
+      animate: true,
     });
-    L.marker([userPos.lat, userPos.lng], { icon, zIndexOffset: 500 }).addTo(g);
-    L.circle([userPos.lat, userPos.lng], {
-      radius: 150,
-      color: "#10B981",
-      weight: 1,
-      fillColor: "#10B981",
-      fillOpacity: 0.08,
-    }).addTo(g);
+  }, [route, fitRoute]);
+
+  // ciclista: marcador com seta, deslizando entre as leituras de GPS
+  useEffect(() => {
+    const map = mapRef.current;
+    const g = userGroupRef.current;
+    if (!map || !g) return;
+
+    if (!userPos) {
+      const anim = animRef.current;
+      if (anim?.raf) cancelAnimationFrame(anim.raf);
+      animRef.current = null;
+      curPosRef.current = null;
+      userMarkerRef.current = null;
+      userCircleRef.current = null;
+      g.clearLayers();
+      return;
+    }
+
+    const target = L.latLng(userPos.lat, userPos.lng);
+    if (!userMarkerRef.current) {
+      userMarkerRef.current = L.marker(target, {
+        icon: USER_ICON,
+        zIndexOffset: 1000,
+        interactive: false,
+        keyboard: false,
+      }).addTo(g);
+      userCircleRef.current = L.circle(target, {
+        radius: 150,
+        color: "#10B981",
+        weight: 1,
+        fillColor: "#10B981",
+        fillOpacity: 0.08,
+        interactive: false,
+      }).addTo(g);
+      curPosRef.current = target;
+      if (followRef.current) centerOn(target, false, navigatingRef.current ? 17 : 16);
+      return;
+    }
+
+    const prev = animRef.current;
+    if (prev?.raf) cancelAnimationFrame(prev.raf);
+    const anim = { from: curPosRef.current ?? target, to: target, t0: performance.now(), raf: null as number | null };
+    animRef.current = anim;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - anim.t0) / POS_ANIM_MS);
+      const ll = L.latLng(
+        anim.from.lat + (anim.to.lat - anim.from.lat) * t,
+        anim.from.lng + (anim.to.lng - anim.from.lng) * t,
+      );
+      curPosRef.current = ll;
+      userMarkerRef.current?.setLatLng(ll);
+      userCircleRef.current?.setLatLng(ll);
+      if (followRef.current && !zoomingRef.current) centerOn(ll, false);
+      anim.raf = t < 1 ? requestAnimationFrame(tick) : null;
+    };
+    anim.raf = requestAnimationFrame(tick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- centerOn lê apenas refs
   }, [userPos]);
+
+  // seta gira com o rumo; sem rumo conhecido mostra só o ponto
+  useEffect(() => {
+    const el = userMarkerRef.current?.getElement()?.querySelector<HTMLElement>(".vdb-nav");
+    if (!el) return;
+    if (typeof heading === "number" && Number.isFinite(heading)) {
+      angleRef.current = nextAngle(angleRef.current, heading);
+      el.classList.remove("vdb-nav--still");
+      el.style.setProperty("--vdb-rot", `${angleRef.current}deg`);
+    } else {
+      el.classList.add("vdb-nav--still");
+    }
+  }, [heading, userPos]);
+
+  // o círculo de "radar" só faz sentido fora da navegação guiada
+  useEffect(() => {
+    userCircleRef.current?.setStyle({ opacity: navigating ? 0 : 1, fillOpacity: navigating ? 0 : 0.08 });
+  }, [navigating, userPos]);
+
+  // seguir o ciclista: ao ligar, voa até ele já com zoom de navegação
+  useEffect(() => {
+    followRef.current = !!follow;
+    const cur = curPosRef.current;
+    if (follow && cur) centerOn(cur, true, Math.max(mapRef.current?.getZoom() ?? 0, navigating ? 17 : 16));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage à troca de follow/navigating
+  }, [follow, navigating]);
 
   // modo "clique no mapa"
   useEffect(() => {
@@ -153,6 +454,7 @@ export default function FortalezaMap({
 
   useEffect(() => {
     if (!focus || !mapRef.current) return;
+    followRef.current = false;
     mapRef.current.flyTo([focus.lat, focus.lng], focus.zoom ?? 16, { duration: 0.8 });
   }, [focus]);
 

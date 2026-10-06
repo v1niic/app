@@ -205,10 +205,79 @@
   }
 }
 
+/* obstáculo que fica no caminho da rota: anel fixo laranja chamando atenção */
+.vdb-marker-route .vdb-marker-dot {
+  inset: 3px;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.55), 0 0 12px var(--vdb-c);
+}
+
+/* seta de navegação do ciclista (gira com o rumo) */
+.vdb-nav {
+  --vdb-rot: 0deg;
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+}
+
+.vdb-nav-pulse {
+  position: absolute;
+  inset: 8px;
+  border-radius: 9999px;
+  border: 2px solid #34d399;
+  animation: vdb-pulse 1.8s ease-out infinite;
+}
+
+.vdb-nav-dot {
+  position: absolute;
+  inset: 15px;
+  border-radius: 9999px;
+  background: #34d399;
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px #10b981;
+  opacity: 0;
+}
+
+.vdb-nav-arrow {
+  position: absolute;
+  inset: 0;
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
+  transform: rotate(var(--vdb-rot));
+  transition: transform 0.4s ease-out;
+}
+
+/* sem rumo conhecido (parado): vira um ponto, como no Uber */
+.vdb-nav--still .vdb-nav-arrow {
+  opacity: 0;
+}
+
+.vdb-nav--still .vdb-nav-dot {
+  opacity: 1;
+}
+
+.vdb-dest {
+  display: block;
+  width: 32px;
+  height: 42px;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5));
+}
+
+.vdb-dest svg {
+  display: block;
+  width: 32px;
+  height: 42px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vdb-marker-pulse,
-  .vdb-user-pulse {
+  .vdb-user-pulse,
+  .vdb-nav-pulse {
     animation: none;
+  }
+  .vdb-nav-arrow {
+    transition: none;
   }
 }
 

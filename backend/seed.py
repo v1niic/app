@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from lib.auth import hash_password
 from lib.db import db, ensure_indexes
 from lib.game import apply_badges
+from lib.snap import snap_pending_lanes
 
 LANES = [
     {
@@ -120,9 +121,14 @@ DEMO_OBSTACLES = [
 async def main() -> None:
     await ensure_indexes()
 
-    # 1) Ciclovias/ciclofaixas — upsert por id (idempotente)
+    # 1) Ciclovias/ciclofaixas — upsert por id (idempotente).
+    # Não sobrescreve a geometria já ajustada às ruas: só regrava se os waypoints do seed mudaram.
     for lane in LANES:
-        await db.bikelanes.update_one({"id": lane["id"]}, {"$set": lane}, upsert=True)
+        existing = await db.bikelanes.find_one({"id": lane["id"]})
+        if existing and existing.get("snapped") and existing.get("waypoints") == lane["coordinates"]:
+            continue
+        doc = {**lane, "waypoints": lane["coordinates"], "snapped": False}
+        await db.bikelanes.update_one({"id": lane["id"]}, {"$set": doc}, upsert=True)
     print(f"bikelanes: {await db.bikelanes.count_documents({})} rotas garantidas")
 
     # 2) Usuários demo — upsert por e-mail, senha padrão "senha123"
@@ -174,7 +180,12 @@ async def main() -> None:
         await db.obstacles.insert_many(docs)
     print(f"obstacles: {await db.obstacles.count_documents({})} alertas no mapa")
 
-    # 4) Índices podem ter sido recriados após upserts — garante de novo por segurança
+    # 4) Cola as ciclovias nas ruas reais (roteador de bike). Sem internet, mantém as linhas retas e avisa.
+    snapped = await snap_pending_lanes()
+    pending = await db.bikelanes.count_documents({"snapped": {"$ne": True}})
+    print(f"ciclovias ajustadas às ruas: {snapped}" + (f" ({pending} pendentes — sem acesso ao roteador)" if pending else ""))
+
+    # 5) Índices podem ter sido recriados após upserts — garante de novo por segurança
     await ensure_indexes()
     print("seed concluído.")
 

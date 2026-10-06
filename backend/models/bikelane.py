@@ -9,4 +9,5 @@ class BikeLane(BaseModel):
     kind: Literal["ciclovia", "ciclofaixa"]
     length_km: float = Field(ge=0)
     notes: str = ""
-    coordinates: list[list[float]]  # pares [lat, lng]
+    coordinates: list[list[float]]  # pares [lat, lng]; após o snap, polilinha densa que segue as ruas
+    snapped: bool = False  # True quando `coordinates` já foi ajustada às ruas reais
