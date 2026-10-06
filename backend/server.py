@@ -23,12 +23,16 @@ from routers.bikelanes import router as bikelanes_router
 from routers.gamification import router as gamification_router
 from routers.obstacles import router as obstacles_router
 from routers.rides import router as rides_router
+from routers.routing import router as routing_router
+from lib.snap import snap_pending_lanes
 
 
 # Startup runs before the yield, shutdown after it. Add your own setup/teardown here.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.index_task = asyncio.create_task(ensure_indexes())  # background: a big index build must not block boot
+    # Ajusta ciclovias ainda não "coladas" nas ruas (melhor esforço, em segundo plano, não bloqueia o boot).
+    app.state.snap_task = asyncio.create_task(snap_pending_lanes())
     yield
     client.close()
 
@@ -72,6 +76,7 @@ api_router.include_router(obstacles_router)
 api_router.include_router(bikelanes_router)
 api_router.include_router(gamification_router)
 api_router.include_router(rides_router)
+api_router.include_router(routing_router)
 
 # Include the router in the main app
 app.include_router(api_router)

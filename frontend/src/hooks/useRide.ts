@@ -16,11 +16,25 @@ export interface RideState {
   riding: boolean;
   demo: boolean;
   pos: RidePos | null;
+  /** direção do deslocamento em graus (0 = norte, sentido horário); null enquanto não houver movimento */
+  heading: number | null;
   speedKmh: number;
   sessionKm: number;
   toggle: () => void;
   startDemo: (lane: BikeLane) => void;
+  /** simula um pedal ao longo de qualquer polilinha [lat, lng] (ex.: a rota de navegação) */
+  startRoute: (coords: [number, number][]) => void;
   stop: () => void;
+}
+
+/** Rumo inicial (graus, 0 = norte) de a para b. */
+export function bearing(a: RidePos, b: RidePos): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const y = Math.sin(toRad(b.lng - a.lng)) * Math.cos(toRad(b.lat));
+  const x =
+    Math.cos(toRad(a.lat)) * Math.sin(toRad(b.lat)) -
+    Math.sin(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.cos(toRad(b.lng - a.lng));
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
 /** Beep curto de proximidade — só dispara depois de um gesto do usuário (ligar o GPS), então o autoplay passa. */
@@ -53,6 +67,7 @@ export function useRide() {
   const [riding, setRiding] = useState(false);
   const [demo, setDemo] = useState(false);
   const [pos, setPos] = useState<RidePos | null>(null);
+  const [heading, setHeading] = useState<number | null>(null);
   const [speedKmh, setSpeedKmh] = useState(0);
   const [sessionKm, setSessionKm] = useState(0);
 
@@ -104,7 +119,7 @@ export function useRide() {
     if (km > 0.05) void logRide(km);
   }, [clearTracking, logRide]);
 
-  const onPos = useCallback((p: { lat: number; lng: number; acc: number }) => {
+  const onPos = useCallback((p: { lat: number; lng: number; acc: number; heading?: number | null }) => {
     const now = Date.now();
     const last = lastRef.current;
     if (last) {
@@ -114,6 +129,10 @@ export function useRide() {
         kmRef.current += d / 1000;
         setSessionKm(kmRef.current);
         setSpeedKmh((d / dt) * 3.6);
+        setHeading(bearing(last, p));
+      } else if (typeof p.heading === "number" && Number.isFinite(p.heading)) {
+        // parado ou deslocamento mínimo: usa a bússola/rumo informado pelo aparelho, se houver
+        setHeading(p.heading);
       }
     }
     lastRef.current = { lat: p.lat, lng: p.lng, t: now };
@@ -134,7 +153,13 @@ export function useRide() {
     setDemo(false);
     playAlertBeep();
     watchRef.current = navigator.geolocation.watchPosition(
-      (p) => onPos({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+      (p) =>
+        onPos({
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          acc: p.coords.accuracy,
+          heading: p.coords.heading,
+        }),
       () => {
         toast.error("Não foi possível obter sua localização");
         stop();
@@ -143,11 +168,10 @@ export function useRide() {
     );
   }, [onPos, stop]);
 
-  /** Simula um pedal de ~18 km/h ao longo de uma ciclovia real — útil para demonstrar alertas sem sair do lugar. */
-  const startDemo = useCallback(
-    (lane: BikeLane) => {
+  /** Simula um pedal de ~18 km/h ao longo de uma polilinha [lat, lng] — útil para demonstrar alertas e a navegação sem sair do lugar. */
+  const startRoute = useCallback(
+    (pts: [number, number][]) => {
       if (ridingRef.current) stop();
-      const pts = lane.coordinates;
       if (pts.length < 2) return;
       ridingRef.current = true;
       setRiding(true);
@@ -190,6 +214,8 @@ export function useRide() {
     [onPos, stop],
   );
 
+  const startDemo = useCallback((lane: BikeLane) => startRoute(lane.coordinates), [startRoute]);
+
   useEffect(
     () => () => {
       // desmontagem: apenas limpa rastreio (registro de km só em stop explícito)
@@ -199,6 +225,6 @@ export function useRide() {
     [],
   );
 
-  const state: RideState = { riding, demo, pos, speedKmh, sessionKm, toggle, startDemo, stop };
+  const state: RideState = { riding, demo, pos, heading, speedKmh, sessionKm, toggle, startDemo, startRoute, stop };
   return state;
 }

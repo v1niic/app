@@ -48,6 +48,34 @@ export interface BikeLane {
   length_km: number;
   notes: string;
   coordinates: [number, number][];
+  /** true quando `coordinates` já foi ajustada às ruas reais (polilinha densa) */
+  snapped?: boolean;
+}
+
+export interface RouteStep {
+  instruction: string;
+  name: string;
+  type: string;
+  modifier: string;
+  distance_m: number;
+  lat: number;
+  lng: number;
+}
+
+export interface RouteResult {
+  coordinates: [number, number][];
+  distance_m: number;
+  duration_s: number;
+  steps: RouteStep[];
+  /** "bike" = rota real por ruas; "straight" = fallback em linha reta (roteador indisponível) */
+  source: "bike" | "straight";
+}
+
+export interface Place {
+  name: string;
+  label: string;
+  lat: number;
+  lng: number;
 }
 
 export interface MissionProgress {
