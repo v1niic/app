@@ -58,3 +58,9 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - Km do pedal só é registrado no servidor quando o usuário ENCERRA o pedal (toggle off/fim da demo); unmount descarta.
 - `response_model=User | None` no /auth/me é intencional (visitante = null, sem 401).
 - Cadastro dá o emblema "Calouro do Pedal" imediatamente (por design).
+
+## Deploy na Vercel (multi-service)
+- `vercel.json` na raiz: serviço `backend` (FastAPI, `backend/server.py`) e `frontend` (Vite); `/api/*` → backend, o resto → frontend. Sem bindings (o front chama `/api` por caminho relativo).
+- Variáveis obrigatórias: `MONGO_URL`, `DB_NAME` (MongoDB Atlas; liberar `0.0.0.0/0`). Opcional: `CORS_ORIGINS`.
+- Em serverless as tarefas de startup (índices/snap) não são confiáveis: rodar `python seed.py` uma vez com `MONGO_URL` do Atlas.
+- `backend/requirements.txt` só tem dependências de runtime (para caber no limite da função); testes/lint em `requirements-dev.txt`.
