@@ -37,26 +37,43 @@ export function bearing(a: RidePos, b: RidePos): number {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
-/** Beep curto de proximidade — só dispara depois de um gesto do usuário (ligar o GPS), então o autoplay passa. */
-export function playAlertBeep(): void {
+/**
+ * Beep de proximidade — só dispara depois de um gesto do usuário (ligar o GPS), então o autoplay passa.
+ * `warn` = um tom duplo suave; `danger` = três tons agudos e mais altos, impossíveis de confundir.
+ */
+export function playAlertBeep(level: "warn" | "danger" = "warn"): void {
   try {
     const Ctx =
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;
     const ctx = new Ctx();
-    const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.connect(gain);
     gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.45);
-    setTimeout(() => void ctx.close(), 700);
+    const t0 = ctx.currentTime;
+    const tones: [number, number][] =
+      level === "danger"
+        ? [
+            [1175, 0],
+            [1175, 0.18],
+            [1175, 0.36],
+          ]
+        : [
+            [880, 0],
+            [660, 0.15],
+          ];
+    const peak = level === "danger" ? 0.14 : 0.08;
+    for (const [freq, at] of tones) {
+      const osc = ctx.createOscillator();
+      osc.type = level === "danger" ? "square" : "sine";
+      osc.frequency.setValueAtTime(freq, t0 + at);
+      osc.connect(gain);
+      gain.gain.setValueAtTime(peak, t0 + at);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + at + 0.14);
+      osc.start(t0 + at);
+      osc.stop(t0 + at + 0.15);
+    }
+    setTimeout(() => void ctx.close(), 900);
   } catch {
     // áudio bloqueado — o alerta visual segue
   }

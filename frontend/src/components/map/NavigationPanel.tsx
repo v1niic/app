@@ -25,8 +25,8 @@ import { Input } from "@/components/ui/input";
 import { formatDistance, formatDuration } from "@/hooks/useNavigation";
 import type { NavigationState } from "@/hooks/useNavigation";
 import type { RideState } from "@/hooks/useRide";
-import { OBSTACLE_TYPES, formatKm } from "@/lib/types";
-import type { BikeLane, Obstacle, RouteStep } from "@/lib/types";
+import { formatKm } from "@/lib/types";
+import type { BikeLane, RouteStep } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Horário previsto de chegada (HH:mm) a partir de agora + `seconds`. */
@@ -57,51 +57,25 @@ export function ManeuverIcon({ step, className }: { step: RouteStep | null; clas
 interface BannerProps {
   nav: NavigationState;
   ride: RideState;
-  /** obstáculo a menos de 200 m (alerta de proximidade) */
-  alert: { obstacle: Obstacle; distM: number } | null;
 }
 
-/** Faixa superior durante a navegação: próxima manobra + distância (vira alerta vermelho perto de obstáculos). */
-export function ManeuverBanner({ nav, ride, alert }: BannerProps) {
-  const alerting = !!alert;
+/** Faixa superior durante a navegação: próxima manobra, distância e velocidade. Os perigos têm cartão próprio. */
+export function ManeuverBanner({ nav, ride }: BannerProps) {
   return (
     <div
-      className={cn(
-        "absolute left-3 right-3 top-3 z-[1180] flex items-center gap-3 rounded-2xl border px-3 py-3 shadow-2xl backdrop-blur-md md:left-[404px]",
-        alerting ? "animate-pulse border-red-500/70 bg-red-950/90" : "border-emerald-500/30 bg-slate-900/92",
-      )}
-      data-testid={alerting ? "gps-proximity-alert" : "nav-banner"}
+      className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-slate-900/92 px-3 py-3 shadow-2xl backdrop-blur-md"
+      data-testid="nav-banner"
     >
-      <span
-        className={cn(
-          "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
-          alerting ? "bg-red-500 text-white" : "bg-emerald-500 text-[#022C22]",
-        )}
-      >
-        {alerting ? (
-          <TriangleAlert className="h-7 w-7" />
-        ) : (
-          <ManeuverIcon step={nav.nextStep} className="h-7 w-7" />
-        )}
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-[#022C22]">
+        <ManeuverIcon step={nav.nextStep} className="h-7 w-7" />
       </span>
       <div className="min-w-0 flex-1">
-        {alert ? (
-          <>
-            <p className="truncate font-heading text-base font-bold text-white">
-              Atenção: {OBSTACLE_TYPES[alert.obstacle.type].label}
-            </p>
-            <p className="text-xs text-red-200">a {Math.round(alert.distM)} m — reduza a velocidade</p>
-          </>
-        ) : (
-          <>
-            <p className="truncate font-heading text-base font-bold text-white" data-testid="nav-instruction">
-              {nav.nextStep ? nav.nextStep.instruction : "Siga a rota"}
-            </p>
-            <p className="text-xs text-slate-300">
-              {nav.nextStep ? `em ${formatDistance(nav.distToNextM)}` : `${formatDistance(nav.remainingM)} até o destino`}
-            </p>
-          </>
-        )}
+        <p className="truncate font-heading text-base font-bold text-white" data-testid="nav-instruction">
+          {nav.nextStep ? nav.nextStep.instruction : "Siga a rota"}
+        </p>
+        <p className="text-xs text-slate-300">
+          {nav.nextStep ? `em ${formatDistance(nav.distToNextM)}` : `${formatDistance(nav.remainingM)} até o destino`}
+        </p>
       </div>
       <div className="shrink-0 text-right">
         <p className="font-mono text-xl font-bold leading-none text-white">{Math.round(ride.speedKmh)}</p>
@@ -340,7 +314,7 @@ export default function NavigationPanel({ nav, ride, lanes, sheetIndex }: PanelP
             <p className="mt-1 text-xs text-slate-400">
               {ride.riding
                 ? `${Math.round(ride.speedKmh)} km/h · ${formatKm(ride.sessionKm)} no pedal`
-                : "Registra seus km e avisa de obstáculos num raio de 200 m, sem destino."}
+                : "Registra seus km e avisa de perigos num raio de 500 m, sem destino."}
             </p>
             <Button
               size="sm"

@@ -143,32 +143,164 @@
   border: none !important;
 }
 
-.vdb-marker {
-  --vdb-c: #ef4444;
+/* ---- Placas de perigo (marcadores de obstáculo) ----
+   Losango na cor do tipo, ícone do perigo dentro, haste até o ponto exato. O nível de aproximação
+   (hz--watch/warn/danger) é aplicado por classe a partir do GPS, sem recriar o marcador. */
+.hz {
+  --hz: #ef4444;
+  --s: 1;
+  --z: 1;
   position: relative;
   display: block;
-  width: 18px;
-  height: 18px;
+  width: 44px;
+  height: 56px;
+  cursor: pointer;
+  scale: calc(var(--s) * var(--z));
+  transform-origin: 22px 54px;
+  transition: scale 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.vdb-marker-dot {
+.vdb-zoom-far .hz {
+  --z: 0.72;
+}
+
+.hz-post {
   position: absolute;
-  inset: 5px;
-  border-radius: 9999px;
-  background: var(--vdb-c);
-  box-shadow: 0 0 8px var(--vdb-c);
+  left: 21px;
+  top: 38px;
+  width: 2px;
+  height: 14px;
+  background: var(--hz);
+  opacity: 0.85;
 }
 
-.vdb-marker-pulse {
+.hz-post::after {
+  content: "";
   position: absolute;
-  inset: 0;
+  left: -2px;
+  bottom: -3px;
+  width: 6px;
+  height: 6px;
   border-radius: 9999px;
-  border: 2px solid var(--vdb-c);
-  animation: vdb-pulse 2s ease-out infinite;
+  background: var(--hz);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.85);
 }
 
-.vdb-marker-high .vdb-marker-pulse {
-  animation-duration: 1s;
+.hz-sign {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  background: var(--hz);
+  rotate: 45deg;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.55), 0 0 14px color-mix(in srgb, var(--hz) 55%, transparent);
+}
+
+.hz-glyph {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  color: #fff;
+  rotate: -45deg;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+.hz-ring {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--hz);
+  border-radius: 9999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* gravidade → anel pulsante: baixa não pulsa, média devagar, alta rápido */
+.hz--media .hz-ring {
+  animation: hz-ping 2.8s ease-out infinite;
+}
+.hz--alta .hz-ring {
+  animation: hz-ping 1.5s ease-out infinite;
+}
+
+/* aproximação: a placa cresce e o anel acelera */
+.hz.hz--watch {
+  --s: 1.12;
+}
+.hz.hz--warn {
+  --s: 1.3;
+}
+.hz.hz--warn .hz-ring {
+  animation: hz-ping 1.1s ease-out infinite;
+}
+.hz.hz--danger {
+  --s: 1.55;
+}
+.hz.hz--danger .hz-ring {
+  border-color: #ef4444;
+  animation: hz-ping 0.7s ease-out infinite;
+}
+.hz.hz--danger .hz-sign {
+  animation: hz-shake 0.5s ease-in-out infinite;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 22px rgba(239, 68, 68, 0.85);
+}
+
+/* no caminho da rota: aro laranja fixo */
+.hz--route .hz-sign {
+  outline: 3px solid rgba(249, 115, 22, 0.75);
+  outline-offset: 2px;
+}
+
+/* alerta acabou de ser reportado: cai do alto com um quique */
+.hz--new .hz-sign,
+.hz--new .hz-post {
+  animation: hz-drop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.hz--new .hz-ring {
+  animation: hz-ping 1s ease-out 4 !important;
+}
+
+@keyframes hz-ping {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(2.3);
+    opacity: 0;
+  }
+}
+
+@keyframes hz-shake {
+  0%,
+  100% {
+    rotate: 45deg;
+  }
+  25% {
+    rotate: 39deg;
+  }
+  75% {
+    rotate: 51deg;
+  }
+}
+
+@keyframes hz-drop {
+  0% {
+    translate: 0 -46px;
+    opacity: 0;
+  }
+  100% {
+    translate: 0 0;
+    opacity: 1;
+  }
 }
 
 .vdb-user {
@@ -203,12 +335,6 @@
     transform: scale(2.4);
     opacity: 0;
   }
-}
-
-/* obstáculo que fica no caminho da rota: anel fixo laranja chamando atenção */
-.vdb-marker-route .vdb-marker-dot {
-  inset: 3px;
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.55), 0 0 12px var(--vdb-c);
 }
 
 /* seta de navegação do ciclista (gira com o rumo) */
@@ -271,10 +397,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vdb-marker-pulse,
   .vdb-user-pulse,
-  .vdb-nav-pulse {
-    animation: none;
+  .vdb-nav-pulse,
+  .hz-ring,
+  .hz-sign,
+  .hz-post {
+    animation: none !important;
+  }
+  .hz {
+    transition: none;
   }
   .vdb-nav-arrow {
     transition: none;

@@ -5,24 +5,27 @@ import confetti from "canvas-confetti";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { FlagTriangleRight, Layers, LocateFixed, X } from "lucide-react";
+import { FlagTriangleRight, Layers, LocateFixed, Volume2, VolumeX, X } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import BottomSheet from "@/components/map/BottomSheet";
 import FortalezaMap from "@/components/map/FortalezaMap";
 import type { FocusRequest } from "@/components/map/FortalezaMap";
-import LiveGPSTracker from "@/components/map/LiveGPSTracker";
+import HazardAlertCard from "@/components/map/HazardAlertCard";
+import HazardIcon from "@/components/map/HazardIcon";
+import MapHud from "@/components/map/MapHud";
 import NavigationPanel, { ManeuverBanner } from "@/components/map/NavigationPanel";
 import ReportObstacleModal from "@/components/map/ReportObstacleModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
+import { useHazardWatch } from "@/hooks/useHazardWatch";
 import { useNavigation } from "@/hooks/useNavigation";
 import type { NavPhase } from "@/hooks/useNavigation";
-import { playAlertBeep, useRide } from "@/hooks/useRide";
+import { useRide } from "@/hooks/useRide";
 import { apiDetail, apiGet, apiPost } from "@/lib/api";
-import { OBSTACLE_TYPES, SEVERITY_LABELS, haversine } from "@/lib/types";
+import { OBSTACLE_TYPES, SEVERITY_LABELS } from "@/lib/types";
 import type { BikeLane, Obstacle, ObstacleType, ReportResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +53,7 @@ export default function MapPage() {
   const { data: obstacles = [] } = useQuery({
     queryKey: ["obstacles"],
     queryFn: () => apiGet<Obstacle[]>("/obstacles"),
-    refetchInterval: 10000,
+    refetchInterval: 6000, // perigos novos aparecem no mapa quase em tempo real
   });
 
   const [typeFilter, setTypeFilter] = useState<Set<ObstacleType>>(new Set(ALL_TYPES));
@@ -61,6 +64,7 @@ export default function MapPage() {
   const [selected, setSelected] = useState<Obstacle | null>(null);
   const [focus, setFocus] = useState<FocusRequest | null>(null);
   const [follow, setFollow] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
   const [sheetIndex, setSheetIndex] = useState(0);
   const [inset, setInset] = useState(0); // px do rodapé do mapa até o topo do painel inferior
   const [cardDy, setCardDy] = useState(0); // arrasto do cartão do alerta (deslizar para baixo fecha)
@@ -83,20 +87,9 @@ export default function MapPage() {
   const nav = useNavigation(ride, filtered);
   const phase = nav.phase;
 
-  const nearest = useMemo(() => {
-    if (!ride.pos) return null;
-    let best: { obstacle: Obstacle; distM: number } | null = null;
-    for (const o of filtered) {
-      const d = haversine(ride.pos, { lat: o.lat, lng: o.lng });
-      if (!best || d < best.distM) best = { obstacle: o, distM: d };
-    }
-    return best;
-  }, [ride.pos, filtered]);
-
-  const alertObstacleId = nearest && nearest.distM < 200 ? nearest.obstacle.id : null;
-  useEffect(() => {
-    if (ride.riding && alertObstacleId) playAlertBeep();
-  }, [alertObstacleId, ride.riding]);
+  // radar de perigos: distância/direção em tempo real, aviso por som, voz e vibração a cada nível
+  const watch = useHazardWatch({ ride, obstacles: filtered, lanes, soundOn });
+  const { primary, dismiss } = watch;
 
   // câmera acompanha o ciclista enquanto pedala/navega; arrastar o mapa solta a câmera (botão "recentralizar" volta)
   useEffect(() => {
@@ -110,6 +103,12 @@ export default function MapPage() {
   useEffect(() => {
     if (nav.places.length > 0) setSheetIndex((i) => Math.max(i, 1));
   }, [nav.places]);
+
+  const focusPrimary = useCallback(() => {
+    if (!primary) return;
+    setFollow(false);
+    setFocus({ lat: primary.obstacle.lat, lng: primary.obstacle.lng, zoom: 17 });
+  }, [primary]);
 
   const demoLane = useMemo(() => lanes.find((l) => l.id === "beira-mar") ?? lanes[0] ?? null, [lanes]);
   const handleStartDemo = useCallback(() => {
@@ -195,8 +194,6 @@ export default function MapPage() {
     onError: (err) => toast.error(apiDetail(err, "Não foi possível resolver o alerta")),
   });
 
-  const proximityAlert = ride.riding && nearest && nearest.distM < 200 ? nearest : null;
-
   return (
     <div
       className="relative h-[calc(100svh-3.5rem)] w-full overflow-hidden"
@@ -213,6 +210,8 @@ export default function MapPage() {
         onUserPan={onUserPan}
         route={nav.remainingCoords}
         routeObstacleIds={nav.routeObstacleIds}
+        hazardLevels={watch.levels}
+        guideTo={primary ? { lat: primary.obstacle.lat, lng: primary.obstacle.lng } : null}
         fitRoute={phase === "preview"}
         destination={nav.destination}
         bottomInset={inset}
@@ -224,8 +223,32 @@ export default function MapPage() {
         className="absolute inset-0 h-full w-full"
       />
 
-      {/* Faixa superior: próxima manobra / alerta de obstáculo */}
-      {phase === "navigating" && <ManeuverBanner nav={nav} ride={ride} alert={proximityAlert} />}
+      {/* Topo: próxima manobra (navegando) ou radar de perigos, e logo abaixo o cartão de alerta */}
+      <div className="pointer-events-none absolute left-3 right-3 top-3 z-[1180] flex flex-col gap-2 md:left-[404px] md:right-3 md:max-w-[460px] [&>*]:pointer-events-auto">
+        {phase === "navigating" ? (
+          <ManeuverBanner nav={nav} ride={ride} />
+        ) : (
+          !pickMode && (
+            <MapHud
+              ride={ride}
+              hazards={watch.hazards}
+              totalAlerts={filtered.length}
+              soundOn={soundOn}
+              onToggleSound={() => setSoundOn((v) => !v)}
+              onStartDemo={handleStartDemo}
+            />
+          )
+        )}
+        {primary && (
+          <HazardAlertCard
+            key={primary.obstacle.id}
+            hazard={primary}
+            othersAhead={watch.othersAhead}
+            onDismiss={() => dismiss(primary.obstacle.id)}
+            onFocus={focusPrimary}
+          />
+        )}
+      </div>
 
       {/* Dica do modo "reportar" */}
       {pickMode && (
@@ -234,13 +257,6 @@ export default function MapPage() {
           <button type="button" className="ml-3 underline" onClick={() => setPickMode(false)}>
             cancelar
           </button>
-        </div>
-      )}
-
-      {/* HUD GPS clássico (desktop, sem destino): velocidade, km e alerta de proximidade */}
-      {phase === "idle" && (
-        <div className="absolute right-3 top-3 z-[1100] hidden md:block">
-          <LiveGPSTracker ride={ride} nearest={nearest} onStartDemo={handleStartDemo} />
         </div>
       )}
 
@@ -256,6 +272,19 @@ export default function MapPage() {
             data-testid="map-recenter"
           >
             <LocateFixed className="h-5 w-5 text-emerald-400" />
+          </Button>
+        )}
+        {phase === "navigating" && (
+          <Button
+            size="icon-lg"
+            variant="secondary"
+            className="h-11 w-11 rounded-full border border-slate-700 bg-slate-900/90 shadow-xl backdrop-blur-md"
+            onClick={() => setSoundOn((v) => !v)}
+            aria-pressed={soundOn}
+            aria-label={soundOn ? "Silenciar avisos" : "Ativar avisos sonoros"}
+            data-testid="hazard-sound-toggle"
+          >
+            {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5 text-slate-500" />}
           </Button>
         )}
         <Button
@@ -302,10 +331,7 @@ export default function MapPage() {
                     on ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-800/50",
                   )}
                 >
-                  <span
-                    className="h-2.5 w-2.5 shrink-0 rounded-full border"
-                    style={{ background: on ? OBSTACLE_TYPES[t].color : "transparent", borderColor: OBSTACLE_TYPES[t].color }}
-                  />
+                  <HazardIcon type={t} size={16} className={on ? "" : "opacity-40 grayscale"} />
                   {OBSTACLE_TYPES[t].label}
                 </button>
               );
@@ -348,7 +374,7 @@ export default function MapPage() {
           </div>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 font-heading text-sm">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: OBSTACLE_TYPES[selected.type].color }} />
+              <HazardIcon type={selected.type} size={20} />
               {OBSTACLE_TYPES[selected.type].label}
               {selected.status === "resolvido" && <Badge variant="secondary">resolvido</Badge>}
             </CardTitle>
