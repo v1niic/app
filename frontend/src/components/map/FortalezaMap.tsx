@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { OBSTACLE_TYPES } from "@/lib/types";
+import { hazardColor, hazardSvg } from "@/lib/hazards";
+import { WARN_M } from "@/lib/proximity";
+import type { HazardLevel } from "@/lib/proximity";
 import type { BikeLane, Obstacle } from "@/lib/types";
 
 export interface FocusRequest {
@@ -27,6 +29,10 @@ interface FortalezaMapProps {
   route?: [number, number][] | null;
   /** ids de obstáculos que ficam no caminho da rota (ganham destaque) */
   routeObstacleIds?: string[];
+  /** nível de aproximação de cada perigo à frente (atenção/perigo) — o ícone cresce e pulsa */
+  hazardLevels?: Record<string, HazardLevel>;
+  /** perigo principal à frente: uma linha tracejada liga o ciclista até ele */
+  guideTo?: { lat: number; lng: number } | null;
   /** enquadra a rota inteira na tela quando ela muda (pré-visualização) */
   fitRoute?: boolean;
   destination?: { lat: number; lng: number } | null;
@@ -51,15 +57,17 @@ function nextAngle(prev: number, target: number): number {
   return prev + delta;
 }
 
+/**
+ * Marcador em forma de placa de advertência (losango na cor do tipo, ícone do perigo dentro, haste até o ponto exato).
+ * A gravidade vira o anel pulsante (alta = rápido); o nível de aproximação é aplicado depois, por classe.
+ */
 function obstacleIcon(o: Obstacle, onRoute: boolean): L.DivIcon {
-  const color = OBSTACLE_TYPES[o.type].color;
-  const high = o.severity === "alta" ? " vdb-marker-high" : "";
-  const route = onRoute ? " vdb-marker-route" : "";
+  const route = onRoute ? " hz--route" : "";
   return L.divIcon({
     className: "vdb-marker-wrap",
-    html: `<span class="vdb-marker${high}${route}" style="--vdb-c:${color}" data-testid="obstacle-marker" data-obstacle-type="${o.type}" data-obstacle-id="${o.id}"><span class="vdb-marker-dot"></span><span class="vdb-marker-pulse"></span></span>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    html: `<span class="hz hz--${o.severity}${route}" style="--hz:${hazardColor(o.type)}" data-testid="obstacle-marker" data-obstacle-type="${o.type}" data-obstacle-id="${o.id}"><span class="hz-post"></span><span class="hz-ring"></span><span class="hz-sign"><span class="hz-glyph">${hazardSvg(o.type, 16)}</span></span></span>`,
+    iconSize: [44, 56],
+    iconAnchor: [22, 54],
   });
 }
 
@@ -91,6 +99,8 @@ export default function FortalezaMap({
   onUserPan,
   route,
   routeObstacleIds,
+  hazardLevels,
+  guideTo,
   fitRoute,
   destination,
   bottomInset = 0,
@@ -114,6 +124,9 @@ export default function FortalezaMap({
   const userCircleRef = useRef<L.Circle | null>(null);
   const markersRef = useRef<Map<string, { marker: L.Marker; sig: string }>>(new Map());
   const obstacleByIdRef = useRef<Map<string, Obstacle>>(new Map());
+  const guideRef = useRef<L.Polyline | null>(null);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const populatedRef = useRef(false);
   const fittedRef = useRef(false);
 
   // valores "mais recentes" lidos dentro de handlers de longa vida
@@ -189,11 +202,15 @@ export default function FortalezaMap({
       followRef.current = false;
       onUserPanRef.current?.();
     });
+    // zoom afastado: placas menores para não cobrir o mapa
+    const syncZoomClass = () => map.getContainer().classList.toggle("vdb-zoom-far", map.getZoom() < 14);
+    syncZoomClass();
     map.on("zoomstart", () => {
       zoomingRef.current = true;
     });
     map.on("zoomend", () => {
       zoomingRef.current = false;
+      syncZoomClass();
     });
 
     // segurar para escolher destino
@@ -249,6 +266,9 @@ export default function FortalezaMap({
       map.remove();
       mapRef.current = null;
       markersRef.current.clear();
+      knownIdsRef.current = new Set();
+      populatedRef.current = false;
+      guideRef.current = null;
       userMarkerRef.current = null;
       userCircleRef.current = null;
       destMarkerRef.current = null;
@@ -287,7 +307,7 @@ export default function FortalezaMap({
     }
   }, [bikeLanes]);
 
-  // marcadores de obstáculos — atualização incremental (sem piscar a cada refetch de 10 s)
+  // marcadores de obstáculos — atualização incremental (sem piscar a cada atualização de 6 s)
   useEffect(() => {
     const g = obstaclesRef.current;
     if (!g) return;
@@ -312,7 +332,15 @@ export default function FortalezaMap({
           })
           .addTo(g);
         markersRef.current.set(o.id, { marker, sig });
+
+        // alerta reportado agora por alguém (não é a carga inicial nem um filtro reativado): anima a entrada
+        if (populatedRef.current && !knownIdsRef.current.has(o.id)) {
+          const el = marker.getElement()?.querySelector(".hz");
+          el?.classList.add("hz--new");
+          window.setTimeout(() => marker.getElement()?.querySelector(".hz")?.classList.remove("hz--new"), 4500);
+        }
       }
+      knownIdsRef.current.add(o.id);
     }
     for (const [id, entry] of markersRef.current) {
       if (!seen.has(id)) {
@@ -320,7 +348,48 @@ export default function FortalezaMap({
         markersRef.current.delete(id);
       }
     }
+    if (obstacles.length > 0) populatedRef.current = true;
   }, [obstacles, routeObstacleIds]);
+
+  // nível de aproximação: a placa cresce e pulsa conforme o ciclista chega perto
+  useEffect(() => {
+    for (const [id, { marker }] of markersRef.current) {
+      const el = marker.getElement()?.querySelector(".hz");
+      if (!el) continue;
+      const level = hazardLevels?.[id];
+      el.classList.toggle("hz--watch", level === "watch");
+      el.classList.toggle("hz--warn", level === "warn");
+      el.classList.toggle("hz--danger", level === "danger");
+    }
+  }, [hazardLevels, obstacles, routeObstacleIds]);
+
+  // linha tracejada do ciclista até o perigo principal à frente
+  useEffect(() => {
+    const g = userGroupRef.current;
+    if (!g) return;
+    if (!userPos || !guideTo) {
+      if (guideRef.current) g.removeLayer(guideRef.current);
+      guideRef.current = null;
+      return;
+    }
+    const pts: L.LatLngExpression[] = [
+      [userPos.lat, userPos.lng],
+      [guideTo.lat, guideTo.lng],
+    ];
+    if (!guideRef.current) {
+      guideRef.current = L.polyline(pts, {
+        color: "#FB7185",
+        weight: 3,
+        opacity: 0.9,
+        dashArray: "2 9",
+        lineCap: "round",
+        interactive: false,
+      });
+    } else {
+      guideRef.current.setLatLngs(pts);
+    }
+    if (!g.hasLayer(guideRef.current)) guideRef.current.addTo(g);
+  }, [userPos, guideTo]);
 
   // rota de navegação + destino
   useEffect(() => {
@@ -374,6 +443,7 @@ export default function FortalezaMap({
       curPosRef.current = null;
       userMarkerRef.current = null;
       userCircleRef.current = null;
+      guideRef.current = null;
       g.clearLayers();
       return;
     }
@@ -387,11 +457,12 @@ export default function FortalezaMap({
         keyboard: false,
       }).addTo(g);
       userCircleRef.current = L.circle(target, {
-        radius: 150,
-        color: "#10B981",
-        weight: 1,
+        radius: WARN_M,
+        color: "#34D399",
+        weight: 1.5,
+        dashArray: "5 7",
         fillColor: "#10B981",
-        fillOpacity: 0.08,
+        fillOpacity: 0.06,
         interactive: false,
       }).addTo(g);
       curPosRef.current = target;
@@ -432,9 +503,9 @@ export default function FortalezaMap({
     }
   }, [heading, userPos]);
 
-  // o círculo de "radar" só faz sentido fora da navegação guiada
+  // o anel de radar (raio de atenção) fica mais discreto durante a navegação guiada
   useEffect(() => {
-    userCircleRef.current?.setStyle({ opacity: navigating ? 0 : 1, fillOpacity: navigating ? 0 : 0.08 });
+    userCircleRef.current?.setStyle({ opacity: navigating ? 0.35 : 0.9, fillOpacity: navigating ? 0.03 : 0.06 });
   }, [navigating, userPos]);
 
   // seguir o ciclista: ao ligar, voa até ele já com zoom de navegação

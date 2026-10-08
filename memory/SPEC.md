@@ -64,3 +64,9 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - Variáveis obrigatórias: `MONGO_URL`, `DB_NAME` (MongoDB Atlas; liberar `0.0.0.0/0`). Opcional: `CORS_ORIGINS`.
 - Em serverless as tarefas de startup (índices/snap) não são confiáveis: rodar `python seed.py` uma vez com `MONGO_URL` do Atlas.
 - `backend/requirements.txt` só tem dependências de runtime (para caber no limite da função); testes/lint em `requirements-dev.txt`.
+
+## Radar de perigos em tempo real (mapa)
+- Marcadores em forma de placa de advertência (`.hz*` em `index.css`, desenho em `lib/hazards.ts`): cor/ícone por tipo, anel pulsante por gravidade, aro laranja se estiver na rota, animação de queda para alertas novos (lista atualiza a cada 6 s), placas menores com zoom < 14.
+- `lib/proximity.ts` (puro, testável): níveis observar ≤500 m / atenção ≤250 m / perigo ≤100 m, só conta o que está à frente (cone ±80° do rumo), histerese de 40 m, avisa uma vez por nível.
+- `hooks/useHazardWatch.ts`: som (2 tons = atenção, 3 tons agudos = perigo), voz pt-BR e vibração; `levels` faz a placa crescer/pulsar no mapa; `primary` alimenta o `HazardAlertCard` (distância, ETA, ciclovia, gravidade, dispensar por 3 min) e a linha tracejada até o perigo.
+- UI: `MapHud` (status do radar/velocidade/som; substitui o antigo LiveGPSTracker), `HazardAlertCard`, `HazardIcon`.
