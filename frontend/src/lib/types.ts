@@ -101,6 +101,13 @@ export interface RideResult {
   new_badges: BadgeDef[];
 }
 
+export interface RideEntry {
+  id: string;
+  km: number;
+  xp: number;
+  created_at: string;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   name: string;

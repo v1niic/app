@@ -1,0 +1,22 @@
+{
+  "name": "VaiDeBike — Pedale seguro em Fortaleza",
+  "short_name": "VaiDeBike",
+  "description": "Copiloto de pedal: ciclovias, alertas de perigo em tempo real e GPS para ciclistas de Fortaleza.",
+  "lang": "pt-BR",
+  "start_url": "/map",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1120",
+  "theme_color": "#0B1120",
+  "categories": ["navigation", "travel", "sports"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Abrir o mapa", "url": "/map", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Reportar perigo", "url": "/map?report=1", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

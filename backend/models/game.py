@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from models.user import User
@@ -46,3 +48,10 @@ class RideCreate(BaseModel):
 class RideResult(BaseModel):
     user: User
     new_badges: list[BadgeDef] = Field(default_factory=list)
+
+
+class RideEntry(BaseModel):
+    id: str
+    km: float
+    xp: int
+    created_at: datetime

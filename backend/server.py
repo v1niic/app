@@ -58,6 +58,17 @@ class StatusCheckCreate(BaseModel):
 async def root():
     return {"message": "Hello World"}
 
+@api_router.get("/health")
+async def health():
+    """Diagnóstico do deploy: responde 200 sempre; `db` diz se o Mongo está acessível (sem expor segredos)."""
+    try:
+        await asyncio.wait_for(client.admin.command("ping"), timeout=6)
+        return {"ok": True, "db": "up"}
+    except Exception as exc:  # o nome do erro basta para saber se é IP bloqueado, senha ou timeout
+        logging.getLogger(__name__).error("health: mongo ping falhou: %s", exc)
+        return {"ok": False, "db": "down", "error": type(exc).__name__}
+
+
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.model_dump()
@@ -87,6 +98,7 @@ app.add_middleware(
     allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Session-Token"],
 )
 
 # Configure logging
