@@ -46,3 +46,9 @@ Obs.: no iOS a vibração (`navigator.vibrate`) não existe; som, voz e alerta v
 3. Abra `https://SEU-DOMINIO/api/admin/snap?token=SUA_FRASE` (repita se `pendentes` ≠ 0) → ajusta as ciclovias às ruas.
 4. Depois **apague a variável `SEED_TOKEN`**: sem ela, as duas rotas deixam de existir.
 Atenção: as contas demo (`demo@vaidebike.app` etc.) usam a senha pública `senha123` — apague-as do Atlas antes de abrir o app ao público real.
+
+## 6. Dois projetos na Vercel (API e site separados)
+Se o projeto da API foi criado com Root Directory = `backend`, ele só serve `/api`. O site é um **segundo projeto**:
+New Project → mesmo repositório → **Root Directory = `frontend`** (Framework: Vite) → Deploy. Sem variáveis de ambiente.
+O `frontend/vercel.json` repassa `/api/*` para o projeto da API (se o domínio da API mudar, troque-o ali) e faz o fallback das rotas do React (`/map`, `/profile`…) para o `index.html`.
+O build usa `vite build` direto (sem `tsc`), para um erro de tipo não derrubar o deploy.
