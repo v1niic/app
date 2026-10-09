@@ -118,7 +118,7 @@ DEMO_OBSTACLES = [
 ]
 
 
-async def main() -> None:
+async def main(snap: bool = True) -> None:
     await ensure_indexes()
 
     # 1) Ciclovias/ciclofaixas — upsert por id (idempotente).
@@ -181,7 +181,7 @@ async def main() -> None:
     print(f"obstacles: {await db.obstacles.count_documents({})} alertas no mapa")
 
     # 4) Cola as ciclovias nas ruas reais (roteador de bike). Sem internet, mantém as linhas retas e avisa.
-    snapped = await snap_pending_lanes()
+    snapped = await snap_pending_lanes() if snap else 0
     pending = await db.bikelanes.count_documents({"snapped": {"$ne": True}})
     print(f"ciclovias ajustadas às ruas: {snapped}" + (f" ({pending} pendentes — sem acesso ao roteador)" if pending else ""))
 
