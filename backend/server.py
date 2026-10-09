@@ -58,6 +58,27 @@ class StatusCheckCreate(BaseModel):
 async def root():
     return {"message": "Hello World"}
 
+def _mongo_url_info() -> dict:
+    """Resumo SEGURO da MONGO_URL (nunca a senha): ajuda a achar erro de digitação no deploy."""
+    from urllib.parse import unquote, urlsplit
+
+    raw = os.environ.get("MONGO_URL", "")
+    try:
+        parts = urlsplit(raw.strip())
+        password = unquote(parts.password or "")
+        return {
+            "scheme": parts.scheme,
+            "user": unquote(parts.username or ""),
+            "host": parts.hostname,
+            "password_length": len(password),
+            "password_has_brackets": "<" in password or ">" in password,
+            "url_has_outer_spaces": raw != raw.strip(),
+            "db_name": os.environ.get("DB_NAME", ""),
+        }
+    except Exception as exc:
+        return {"parse_error": type(exc).__name__}
+
+
 @api_router.get("/health")
 async def health():
     """Diagnóstico do deploy: responde 200 sempre; `db` diz se o Mongo está acessível (sem expor segredos)."""
@@ -66,7 +87,10 @@ async def health():
         return {"ok": True, "db": "up"}
     except Exception as exc:  # o nome do erro basta para saber se é IP bloqueado, senha ou timeout
         logging.getLogger(__name__).error("health: mongo ping falhou: %s", exc)
-        return {"ok": False, "db": "down", "error": type(exc).__name__}
+        out = {"ok": False, "db": "down", "error": type(exc).__name__}
+        if os.environ.get("HEALTH_DEBUG") == "1":  # só quando você liga na Vercel; desligue depois
+            out["mongo_url"] = _mongo_url_info()
+        return out
 
 
 @api_router.post("/status", response_model=StatusCheck)
