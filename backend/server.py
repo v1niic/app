@@ -18,6 +18,7 @@ load_dotenv(ROOT_DIR / '.env')
 # MongoDB connection
 from lib.db import client, db, ensure_indexes
 
+from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.bikelanes import router as bikelanes_router
 from routers.gamification import router as gamification_router
@@ -112,6 +113,7 @@ api_router.include_router(bikelanes_router)
 api_router.include_router(gamification_router)
 api_router.include_router(rides_router)
 api_router.include_router(routing_router)
+api_router.include_router(admin_router)
 
 # Include the router in the main app
 app.include_router(api_router)
