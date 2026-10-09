@@ -126,7 +126,7 @@ export default function Navbar() {
 
       {showBottomBar && (
         <nav
-          className="fixed inset-x-0 bottom-0 z-[1200] grid h-14 grid-cols-4 items-stretch border-t border-slate-800 bg-[#090D16]/95 backdrop-blur md:hidden"
+          className="fixed inset-x-0 bottom-0 z-[1200] grid h-[calc(3.5rem+env(safe-area-inset-bottom))] grid-cols-4 pb-[env(safe-area-inset-bottom)] items-stretch border-t border-slate-800 bg-[#090D16]/95 backdrop-blur md:hidden"
           data-testid="mobile-bottom-nav"
         >
           <Link

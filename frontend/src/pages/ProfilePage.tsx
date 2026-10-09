@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { LogOut, Save } from "lucide-react";
 
 import BadgeCard from "@/components/gamification/BadgeCard";
+import AccountSecurity from "@/components/profile/AccountSecurity";
+import RideHistory from "@/components/profile/RideHistory";
 import UserStatsCard from "@/components/profile/UserStatsCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,6 +182,11 @@ export default function ProfilePage() {
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RideHistory />
+            <AccountSecurity />
           </div>
 
           {/* Selos */}

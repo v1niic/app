@@ -27,7 +27,9 @@ INDEXES: dict[str, list[IndexModel]] = {
     "sessions": [
         IndexModel([("token", ASCENDING)], name="token", unique=True),
         IndexModel([("user_id", ASCENDING)], name="user_id"),
+        IndexModel([("created_at", ASCENDING)], name="ttl_30d", expireAfterSeconds=60 * 60 * 24 * 30),
     ],
+    "rides": [IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)], name="user_created")],
     "obstacles": [
         IndexModel([("id", ASCENDING)], name="id", unique=True),
         IndexModel([("status", ASCENDING), ("created_at", DESCENDING)], name="status_created"),

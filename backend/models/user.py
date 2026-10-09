@@ -40,3 +40,12 @@ class ProfileUpdate(BaseModel):
     name: str | None = None
     bio: str | None = None
     bike_type: str | None = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=100)
+
+
+class AccountDelete(BaseModel):
+    password: str
