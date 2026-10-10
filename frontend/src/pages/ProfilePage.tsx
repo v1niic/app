@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { LogOut, Save } from "lucide-react";
+import { Camera, CircleHelp, LogOut, Save } from "lucide-react";
 
 import BadgeCard from "@/components/gamification/BadgeCard";
+import Avatar from "@/components/profile/Avatar";
+import AccountSecurity from "@/components/profile/AccountSecurity";
+import RideHistory from "@/components/profile/RideHistory";
 import UserStatsCard from "@/components/profile/UserStatsCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +16,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
-import { apiDetail, apiGet, apiPut } from "@/lib/api";
+import { apiDelete, apiDetail, apiGet, apiPost, apiPut } from "@/lib/api";
 import { BIKE_LABELS } from "@/lib/types";
 import type { BadgeDef, Obstacle, User } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { fileToAvatarDataUrl } from "@/lib/image";
 import { endSession } from "@/lib/session";
 
 export default function ProfilePage() {
@@ -54,6 +60,41 @@ export default function ProfilePage() {
     onError: (err) => toast.error(apiDetail(err, "Não foi possível salvar o perfil")),
   });
 
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const avatarMutation = useMutation({
+    mutationFn: (avatar: string) => apiPut<User>("/auth/me", { avatar }),
+    onSuccess: (_u, avatar) => {
+      void queryClient.invalidateQueries({ queryKey: ["me"] });
+      toast.success(avatar ? "Foto atualizada!" : "Foto removida");
+    },
+    onError: (err) => toast.error(apiDetail(err, "Não foi possível salvar a foto")),
+  });
+
+  const onPickAvatar = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite escolher o mesmo arquivo de novo
+    if (!file) return;
+    try {
+      avatarMutation.mutate(await fileToAvatarDataUrl(file));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível ler a imagem");
+    }
+  };
+
+  const withdrawMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`/obstacles/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["obstacles"] });
+      toast.success("Alerta retirado");
+    },
+    onError: (err) => toast.error(apiDetail(err, "Não foi possível retirar o alerta")),
+  });
+
+  const tutorialMutation = useMutation({
+    mutationFn: () => apiPost<User>("/auth/onboarding", { done: false }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["me"] }), // o gate do App reabre o tutorial
+  });
+
   const logout = async () => {
     await endSession();
     navigate("/");
@@ -84,20 +125,59 @@ export default function ProfilePage() {
           {/* Cabeçalho do ciclista */}
           <div className="flex flex-col gap-4 rounded-xl border border-slate-800 bg-slate-900/50 p-5 md:flex-row md:items-center md:justify-between" data-testid="profile-header">
             <div className="flex items-center gap-4">
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 font-heading text-2xl font-black text-emerald-400">
-                {user.name.charAt(0).toUpperCase()}
-              </span>
+              <div className="relative">
+                <Avatar name={user.name} src={user.avatar} className="h-20 w-20" textClassName="text-3xl" />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={avatarMutation.isPending}
+                  aria-label="Trocar foto de perfil"
+                  data-testid="avatar-change"
+                  className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-900 bg-emerald-500 text-[#022C22] shadow-lg hover:bg-emerald-400 disabled:opacity-60"
+                >
+                  <Camera className="h-4 w-4" />
+                </button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onPickAvatar}
+                  data-testid="avatar-input"
+                />
+              </div>
               <div>
                 <h1 className="font-heading text-2xl font-black tracking-tight text-white" data-testid="profile-name">{user.name}</h1>
                 <p className="text-xs text-slate-400" data-testid="profile-email">{user.email}</p>
+                {user.avatar && (
+                  <button
+                    type="button"
+                    onClick={() => avatarMutation.mutate("")}
+                    className="mt-0.5 text-[11px] text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+                    data-testid="avatar-remove"
+                  >
+                    remover foto
+                  </button>
+                )}
                 <p className="mt-1 text-xs text-slate-400">
                   Nível {user.level} · {user.xp} XP · pedala de {BIKE_LABELS[user.bike_type] ?? user.bike_type}
                 </p>
               </div>
             </div>
-            <Button variant="destructive" size="sm" onClick={logout} data-testid="profile-logout">
-              <LogOut className="h-4 w-4" /> Sair
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => tutorialMutation.mutate()}
+                disabled={tutorialMutation.isPending}
+                data-testid="profile-tutorial"
+              >
+                <CircleHelp className="h-4 w-4" /> Ver tutorial
+              </Button>
+              <Button variant="destructive" size="sm" onClick={logout} data-testid="profile-logout">
+                <LogOut className="h-4 w-4" /> Sair
+              </Button>
+            </div>
           </div>
 
           <UserStatsCard user={user} />
@@ -168,9 +248,37 @@ export default function ProfilePage() {
                         {o.description}
                       </p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        {OBSTACLE_TYPE_LABEL(o.type)} · {o.confirms} confirmações ·{" "}
-                        {o.status === "resolvido" ? "resolvido" : "ativo"}
+                        {OBSTACLE_TYPE_LABEL(o.type)}
+                        {o.status === "ativo" || o.status === "resolvido" ? ` · ${o.confirms} confirmações` : ""}
                       </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            o.status === "pendente" && "bg-amber-400/15 text-amber-200",
+                            o.status === "ativo" && "bg-emerald-500/15 text-emerald-300",
+                            o.status === "recusado" && "bg-red-500/15 text-red-300",
+                            o.status === "resolvido" && "bg-slate-700 text-slate-300",
+                          )}
+                          data-testid="profile-report-status"
+                        >
+                          {{ pendente: "Em análise", ativo: "No mapa", recusado: "Recusado", resolvido: "Resolvido" }[o.status] ?? o.status}
+                        </span>
+                        {(o.status === "pendente" || o.status === "recusado") && (
+                          <button
+                            type="button"
+                            onClick={() => withdrawMutation.mutate(o.id)}
+                            disabled={withdrawMutation.isPending}
+                            className="text-[11px] text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+                            data-testid="profile-report-withdraw"
+                          >
+                            Retirar
+                          </button>
+                        )}
+                      </div>
+                      {o.status === "recusado" && o.reject_reason && (
+                        <p className="mt-1 text-[11px] text-red-300/80">Motivo: {o.reject_reason}</p>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -180,6 +288,11 @@ export default function ProfilePage() {
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <RideHistory />
+            <AccountSecurity />
           </div>
 
           {/* Selos */}

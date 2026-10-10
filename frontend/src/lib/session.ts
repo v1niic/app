@@ -1,4 +1,4 @@
-import { apiPost } from "@/lib/api";
+import { apiPost, clearToken } from "@/lib/api";
 import { queryClient } from "@/lib/queryClient";
 
 /** Call right after a successful login/register: the session cookie is already set, refresh all cached data. */
@@ -11,6 +11,7 @@ export async function endSession(): Promise<void> {
   try {
     await apiPost("/auth/logout");
   } finally {
+    clearToken();
     queryClient.clear();
   }
 }

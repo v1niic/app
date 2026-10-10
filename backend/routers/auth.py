@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from lib.auth import (
+    token_from,
     end_session,
     get_current_user,
     hash_password,
@@ -12,7 +13,7 @@ from lib.auth import (
 )
 from lib.db import db
 from lib.game import apply_badges, level_for_xp, user_from_doc
-from models.user import LoginRequest, ProfileUpdate, RegisterRequest, User
+from models.user import AccountDelete, LoginRequest, OnboardingUpdate, PasswordChange, ProfileUpdate, RegisterRequest, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -28,6 +29,8 @@ async def register(req: RegisterRequest, response: Response):
         "email": email,
         "bio": "",
         "bike_type": req.bike_type or "urbana",
+        "avatar": "",
+        "onboarded": False,
         "city": "Fortaleza",
         "xp": 0,
         "level": 1,
@@ -36,6 +39,7 @@ async def register(req: RegisterRequest, response: Response):
         "confirms_count": 0,
         "badge_ids": [],
         "password_hash": hash_password(req.password),
+        "password_changed": True,  # a própria pessoa escolheu a senha
         "created_at": datetime.now(timezone.utc),
     }
     await db.users.insert_one(doc)
@@ -76,7 +80,54 @@ async def update_me(req: ProfileUpdate, user: dict = Depends(get_current_user)):
         updates["bio"] = req.bio.strip()[:280]
     if req.bike_type is not None:
         updates["bike_type"] = req.bike_type
+    if req.avatar is not None:
+        updates["avatar"] = req.avatar
     if updates:
         await db.users.update_one({"id": user["id"]}, {"$set": updates})
     fresh = await db.users.find_one({"id": user["id"]})
     return user_from_doc(fresh)
+
+
+@router.post("/password")
+async def change_password(req: PasswordChange, request: Request, user: dict = Depends(get_current_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    if not verify_password(req.current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="A senha atual está incorreta")
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(req.new_password), "password_changed": True}},
+    )
+    # encerra os outros aparelhos; esta sessão continua ativa
+    await db.sessions.delete_many({"user_id": user["id"], "token": {"$ne": token_from(request)}})
+    return {"ok": True}
+
+
+@router.post("/delete-account")
+async def delete_account(req: AccountDelete, request: Request, response: Response, user: dict = Depends(get_current_user)):
+    """Exclusão definitiva (LGPD): apaga conta, sessões e histórico de pedais. Alertas reportados ficam para a comunidade."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    if not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Senha incorreta")
+    await db.sessions.delete_many({"user_id": user["id"]})
+    await db.rides.delete_many({"user_id": user["id"]})
+    # alertas ainda não aprovados somem com a conta; os já publicados continuam no mapa para proteger a comunidade
+    await db.obstacles.delete_many({"user_id": user["id"], "status": {"$in": ["pendente", "recusado"]}})
+    await db.chat_messages.delete_many({"user_id": user["id"]})
+    await db.meetups.delete_many({"user_id": user["id"]})
+    await db.meetups.update_many(
+        {"going_ids": user["id"]}, {"$pull": {"going_ids": user["id"], "going_names": user["name"]}}
+    )
+    await db.users.delete_one({"id": user["id"]})
+    response.delete_cookie("vdb_session", path="/")
+    return {"ok": True}
+
+
+@router.post("/onboarding", response_model=User)
+async def set_onboarding(req: OnboardingUpdate, user: dict = Depends(get_current_user)):
+    """Marca a tela de boas-vindas como vista (`done=true`) ou manda mostrar de novo (`done=false`)."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"onboarded": req.done}})
+    return user_from_doc(await db.users.find_one({"id": user["id"]}))

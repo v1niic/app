@@ -13,6 +13,9 @@ export interface User {
   reports_count: number;
   confirms_count: number;
   badge_ids: string[];
+  avatar: string;
+  onboarded: boolean;
+  is_moderator: boolean;
   created_at: string;
 }
 
@@ -36,9 +39,22 @@ export interface Obstacle {
   description: string;
   lat: number;
   lng: number;
+  /** pendente = em análise · ativo = aprovado (no mapa) · recusado · resolvido */
   status: string;
   confirms: number;
   created_at: string;
+  reject_reason?: string;
+}
+
+export interface ModerationItem extends Obstacle {
+  nearby_same_type: number;
+  nearest_same_type_m: number | null;
+}
+
+export interface ModerationSummary {
+  pendente: number;
+  recusado: number;
+  ativo: number;
 }
 
 export interface BikeLane {
@@ -101,6 +117,13 @@ export interface RideResult {
   new_badges: BadgeDef[];
 }
 
+export interface RideEntry {
+  id: string;
+  km: number;
+  xp: number;
+  created_at: string;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   name: string;
@@ -161,4 +184,26 @@ export function haversine(a: { lat: number; lng: number }, b: { lat: number; lng
 
 export function formatKm(km: number): string {
   return km >= 100 ? `${km.toFixed(0)} km` : `${km.toFixed(1)} km`;
+}
+
+export interface ChatMessage {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_level: number;
+  text: string;
+  created_at: string;
+}
+
+export interface Meetup {
+  id: string;
+  user_id: string;
+  user_name: string;
+  title: string;
+  place: string;
+  description: string;
+  starts_at: string;
+  going_count: number;
+  going: boolean;
+  going_names: string[];
 }

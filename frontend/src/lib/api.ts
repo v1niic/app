@@ -1,6 +1,27 @@
-// Typed fetch layer over the FastAPI backend. Base is the relative "/api" prefix so the
-// same code works in dev (Vite proxies /api → :8001) and behind a single origin in prod.
-const BASE = "/api";
+// Typed fetch layer over the FastAPI backend. Na web a base é o prefixo relativo "/api": o mesmo código
+// funciona no dev (Vite faz proxy de /api → :8001) e em produção, onde front e API dividem a origem.
+// No app móvel (Capacitor) não há origem em comum: o build define VITE_API_URL (ex.: https://vaidebike.vercel.app)
+// e a sessão passa a viajar como `Authorization: Bearer`, guardada em localStorage.
+const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/$/, "");
+const BASE = `${API_URL}/api`;
+const USE_TOKEN = API_URL !== "";
+const TOKEN_KEY = "vdb_token";
+
+function readToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // armazenamento indisponível
+  }
+}
 
 // Fields are declared, not constructor parameter properties: tsconfig sets
 // erasableSyntaxOnly, which rejects `constructor(readonly status: number)`.
@@ -19,12 +40,27 @@ export class ApiError extends Error {
 type JsonBody = unknown;
 
 async function request<T>(method: string, path: string, body?: JsonBody): Promise<T> {
-  // Auth rides the httpOnly session cookie automatically — never add auth headers here.
+  // Na web a sessão viaja no cookie httpOnly; só o build móvel (USE_TOKEN) manda o token no header.
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const token = USE_TOKEN ? readToken() : null;
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+
+  if (USE_TOKEN) {
+    const fresh = res.headers.get("X-Session-Token");
+    if (fresh) {
+      try {
+        localStorage.setItem(TOKEN_KEY, fresh);
+      } catch {
+        // sem armazenamento: a sessão dura só até recarregar
+      }
+    }
+  }
 
   // FastAPI reports request-validation failures as 422 with a {detail: [...]} body.
   if (!res.ok) {

@@ -18,8 +18,11 @@ load_dotenv(ROOT_DIR / '.env')
 # MongoDB connection
 from lib.db import client, db, ensure_indexes
 
+from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.bikelanes import router as bikelanes_router
+from routers.chat import router as chat_router
+from routers.moderation import router as moderation_router
 from routers.gamification import router as gamification_router
 from routers.obstacles import router as obstacles_router
 from routers.rides import router as rides_router
@@ -58,6 +61,41 @@ class StatusCheckCreate(BaseModel):
 async def root():
     return {"message": "Hello World"}
 
+def _mongo_url_info() -> dict:
+    """Resumo SEGURO da MONGO_URL (nunca a senha): ajuda a achar erro de digitação no deploy."""
+    from urllib.parse import unquote, urlsplit
+
+    raw = os.environ.get("MONGO_URL", "")
+    try:
+        parts = urlsplit(raw.strip())
+        password = unquote(parts.password or "")
+        return {
+            "scheme": parts.scheme,
+            "user": unquote(parts.username or ""),
+            "host": parts.hostname,
+            "password_length": len(password),
+            "password_has_brackets": "<" in password or ">" in password,
+            "url_has_outer_spaces": raw != raw.strip(),
+            "db_name": os.environ.get("DB_NAME", ""),
+        }
+    except Exception as exc:
+        return {"parse_error": type(exc).__name__}
+
+
+@api_router.get("/health")
+async def health():
+    """Diagnóstico do deploy: responde 200 sempre; `db` diz se o Mongo está acessível (sem expor segredos)."""
+    try:
+        await asyncio.wait_for(client.admin.command("ping"), timeout=6)
+        return {"ok": True, "db": "up"}
+    except Exception as exc:  # o nome do erro basta para saber se é IP bloqueado, senha ou timeout
+        logging.getLogger(__name__).error("health: mongo ping falhou: %s", exc)
+        out = {"ok": False, "db": "down", "error": type(exc).__name__}
+        if os.environ.get("HEALTH_DEBUG") == "1":  # só quando você liga na Vercel; desligue depois
+            out["mongo_url"] = _mongo_url_info()
+        return out
+
+
 @api_router.post("/status", response_model=StatusCheck)
 async def create_status_check(input: StatusCheckCreate):
     status_dict = input.model_dump()
@@ -77,6 +115,9 @@ api_router.include_router(bikelanes_router)
 api_router.include_router(gamification_router)
 api_router.include_router(rides_router)
 api_router.include_router(routing_router)
+api_router.include_router(admin_router)
+api_router.include_router(chat_router)
+api_router.include_router(moderation_router)
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -87,6 +128,7 @@ app.add_middleware(
     allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Session-Token"],
 )
 
 # Configure logging

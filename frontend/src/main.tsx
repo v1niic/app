@@ -15,3 +15,12 @@ createRoot(document.getElementById('root')!).render(
     </QueryClientProvider>
   </StrictMode>,
 )
+
+// PWA: instalável e com casca offline. Só em produção — no dev o service worker atrapalharia o hot reload.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // sem service worker o app funciona igual, só não abre offline
+    })
+  })
+}

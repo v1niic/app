@@ -106,7 +106,7 @@ DEMO_USERS = [
         "confirms_count": 5,
     },
      {
-        "email": "marcosviniciuspessoa5@gmail.com",
+        "email": "marcosviniciuspessoa6@gmail.com",
         "name": "Vinicíus",
         "bio": "DEV.",
         "bike_type": "mtb",
@@ -129,7 +129,7 @@ DEMO_OBSTACLES = [
 ]
 
 
-async def main() -> None:
+async def main(snap: bool = True) -> None:
     await ensure_indexes()
 
     # 1) Ciclovias/ciclofaixas — upsert por id (idempotente).
@@ -159,10 +159,13 @@ async def main() -> None:
             "reports_count": u["reports_count"],
             "confirms_count": u["confirms_count"],
             "badge_ids": [],
-            "password_hash": hash_password("senha123"),
-            "created_at": now,
         }
-        await db.users.update_one({"email": u["email"]}, {"$set": doc}, upsert=True)
+        # senha e data só na criação: rodar o seed de novo NÃO devolve a conta dev à senha pública
+        await db.users.update_one(
+            {"email": u["email"]},
+            {"$set": doc, "$setOnInsert": {"password_hash": hash_password("senha123"), "created_at": now}},
+            upsert=True,
+        )
         fresh = await db.users.find_one({"email": u["email"]})
         users_by_email[u["email"]] = fresh
         fresh, _ = await apply_badges(fresh)
@@ -192,7 +195,7 @@ async def main() -> None:
     print(f"obstacles: {await db.obstacles.count_documents({})} alertas no mapa")
 
     # 4) Cola as ciclovias nas ruas reais (roteador de bike). Sem internet, mantém as linhas retas e avisa.
-    snapped = await snap_pending_lanes()
+    snapped = await snap_pending_lanes() if snap else 0
     pending = await db.bikelanes.count_documents({"snapped": {"$ne": True}})
     print(f"ciclovias ajustadas às ruas: {snapped}" + (f" ({pending} pendentes — sem acesso ao roteador)" if pending else ""))
 

@@ -1,7 +1,10 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Navbar from "@/components/layout/Navbar";
+import Onboarding from "@/components/onboarding/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
+import AlertsInboxPage from "@/pages/AlertsInboxPage";
+import ChatPage from "@/pages/ChatPage";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import MapPage from "@/pages/MapPage";
@@ -19,12 +22,15 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/missions" element={<MissionsPage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/alertas" element={<AlertsInboxPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Onboarding />
       <Toaster />
     </div>
   );

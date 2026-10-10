@@ -1,7 +1,9 @@
 from datetime import datetime
 from uuid import uuid4
 
-from pydantic import BaseModel, EmailStr, Field
+import re
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 def _uuid() -> str:
@@ -21,6 +23,9 @@ class User(BaseModel):
     reports_count: int = 0
     confirms_count: int = 0
     badge_ids: list[str] = Field(default_factory=list)
+    avatar: str = ""  # foto de perfil: data URL pequena (o navegador reduz para ~256 px)
+    onboarded: bool = False  # já viu a tela de boas-vindas / tutorial
+    is_moderator: bool = False  # conta dev: analisa e aprova os alertas (calculado no servidor, nunca vem do cliente)
     created_at: datetime
 
 
@@ -36,7 +41,32 @@ class LoginRequest(BaseModel):
     password: str
 
 
+AVATAR_RE = re.compile(r"^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$")
+AVATAR_MAX_CHARS = 150_000  # ~110 KB de imagem; o navegador envia ~15 KB
+
+
 class ProfileUpdate(BaseModel):
     name: str | None = None
     bio: str | None = None
     bike_type: str | None = None
+    avatar: str | None = None  # "" remove a foto
+
+    @field_validator("avatar")
+    @classmethod
+    def _avatar_ok(cls, v: str | None) -> str | None:
+        if v and (len(v) > AVATAR_MAX_CHARS or not AVATAR_RE.match(v)):
+            raise ValueError("Imagem inválida ou grande demais")
+        return v
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=100)
+
+
+class AccountDelete(BaseModel):
+    password: str
+
+
+class OnboardingUpdate(BaseModel):
+    done: bool = True
