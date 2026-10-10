@@ -79,3 +79,31 @@ class ForgotPassword(BaseModel):
 class ResetPassword(BaseModel):
     token: str = Field(min_length=20, max_length=200)
     new_password: str = Field(min_length=6, max_length=100)
+
+
+class EmailChange(BaseModel):
+    new_email: EmailStr
+    password: str
+
+
+class Deactivate(BaseModel):
+    password: str
+
+
+class PublicUser(BaseModel):
+    """O que qualquer ciclista logado vê de outro: nunca e-mail."""
+
+    id: str
+    name: str
+    avatar: str = ""
+    bio: str = ""
+    bike_type: str = "urbana"
+    level: int = 1
+    xp: int = 0
+    total_km: float = 0.0
+    reports_count: int = 0
+    badge_ids: list[str] = Field(default_factory=list)
+    followers_count: int = 0
+    following_count: int = 0
+    is_following: bool = False  # eu sigo esta pessoa
+    follows_me: bool = False  # esta pessoa me segue

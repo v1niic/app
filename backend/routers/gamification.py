@@ -19,7 +19,7 @@ async def list_missions(user: dict | None = Depends(get_current_user)):
 
 
 # Contas de demonstração do seed (id "seed-...") existem só para apresentar o app: não entram no placar nem na contagem.
-REAL_USERS = {"id": {"$not": {"$regex": "^seed-"}}}
+REAL_USERS = {"id": {"$not": {"$regex": "^seed-"}}, "deactivated": {"$ne": True}}
 
 
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])

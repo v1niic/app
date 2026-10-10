@@ -35,6 +35,12 @@ INDEXES: dict[str, list[IndexModel]] = {
         IndexModel([("user_id", ASCENDING)], name="user_id"),
         IndexModel([("expires_at", ASCENDING)], name="ttl_expires", expireAfterSeconds=0),
     ],
+    # quem segue quem: um documento por par (seguidor → seguido)
+    "follows": [
+        IndexModel([("follower_id", ASCENDING), ("followee_id", ASCENDING)], name="pair_unique", unique=True),
+        IndexModel([("followee_id", ASCENDING), ("created_at", DESCENDING)], name="followee_created"),
+        IndexModel([("follower_id", ASCENDING), ("created_at", DESCENDING)], name="follower_created"),
+    ],
     "rides": [IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)], name="user_created")],
     "obstacles": [
         IndexModel([("id", ASCENDING)], name="id", unique=True),

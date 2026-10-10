@@ -19,6 +19,24 @@ export interface User {
   created_at: string;
 }
 
+/** Outro ciclista, como qualquer pessoa logada o vê (sem e-mail). */
+export interface PublicUser {
+  id: string;
+  name: string;
+  avatar: string;
+  bio: string;
+  bike_type: string;
+  level: number;
+  xp: number;
+  total_km: number;
+  reports_count: number;
+  badge_ids: string[];
+  followers_count: number;
+  following_count: number;
+  is_following: boolean;
+  follows_me: boolean;
+}
+
 export interface BadgeDef {
   id: string;
   name: string;

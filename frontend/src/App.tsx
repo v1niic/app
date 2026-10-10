@@ -11,6 +11,9 @@ import MapPage from "@/pages/MapPage";
 import MissionsPage from "@/pages/MissionsPage";
 import ProfilePage from "@/pages/ProfilePage";
 import Register from "@/pages/Register";
+import PeoplePage from "@/pages/PeoplePage";
+import PersonPage from "@/pages/PersonPage";
+import SettingsPage from "@/pages/SettingsPage";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 
@@ -27,6 +30,10 @@ export default function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/alertas" element={<AlertsInboxPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="/configuracoes/:secao" element={<SettingsPage />} />
+          <Route path="/ciclistas" element={<PeoplePage />} />
+          <Route path="/ciclistas/:id" element={<PersonPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/esqueci-senha" element={<ForgotPassword />} />

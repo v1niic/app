@@ -18,7 +18,7 @@ from lib.auth import (
 from lib.db import db
 from lib.game import apply_badges, level_for_xp, user_from_doc
 from lib.mailer import mail_enabled, reset_email, send_mail
-from models.user import AccountDelete, ForgotPassword, ResetPassword, LoginRequest, OnboardingUpdate, PasswordChange, ProfileUpdate, RegisterRequest, User
+from models.user import AccountDelete, Deactivate, EmailChange, ForgotPassword, ResetPassword, LoginRequest, OnboardingUpdate, PasswordChange, ProfileUpdate, RegisterRequest, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -78,6 +78,9 @@ async def login(req: LoginRequest, response: Response):
     user = await db.users.find_one({"email": req.email.lower()})
     if not user or not verify_password(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos")
+    if user.get("deactivated"):  # entrar de novo reativa a conta desativada
+        await db.users.update_one({"id": user["id"]}, {"$set": {"deactivated": False}})
+        user["deactivated"] = False
     await start_session(response, user["id"])
     return user_from_doc(user)
 
@@ -128,6 +131,39 @@ async def change_password(req: PasswordChange, request: Request, user: dict = De
     return {"ok": True}
 
 
+@router.post("/email")
+async def change_email(req: EmailChange, user: dict = Depends(get_current_user)):
+    """Troca o e-mail de login. Exige a senha atual; não aceita um e-mail que já tem conta."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    if not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="A senha está incorreta")
+    new = req.new_email.lower()
+    if new == user["email"]:
+        raise HTTPException(status_code=400, detail="Este já é o seu e-mail")
+    if await db.users.find_one({"email": new}):
+        raise HTTPException(status_code=400, detail="Este e-mail já está cadastrado")
+    try:
+        await db.users.update_one({"id": user["id"]}, {"$set": {"email": new}})
+    except Exception:  # corrida com outro cadastro: o índice único barra
+        raise HTTPException(status_code=400, detail="Este e-mail já está cadastrado")
+    await db.password_resets.delete_many({"user_id": user["id"]})  # links pendentes eram do e-mail antigo
+    return user_from_doc(await db.users.find_one({"id": user["id"]}))
+
+
+@router.post("/deactivate")
+async def deactivate_account(req: Deactivate, response: Response, user: dict = Depends(get_current_user)):
+    """Desativação temporária: some das buscas e do placar, tudo é mantido. Entrar de novo reativa."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    if not verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Senha incorreta")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"deactivated": True}})
+    await db.sessions.delete_many({"user_id": user["id"]})
+    response.delete_cookie("vdb_session", path="/")
+    return {"ok": True}
+
+
 @router.post("/delete-account")
 async def delete_account(req: AccountDelete, request: Request, response: Response, user: dict = Depends(get_current_user)):
     """Exclusão definitiva (LGPD): apaga conta, sessões e histórico de pedais. Alertas reportados ficam para a comunidade."""
@@ -144,6 +180,7 @@ async def delete_account(req: AccountDelete, request: Request, response: Respons
     await db.meetups.update_many(
         {"going_ids": user["id"]}, {"$pull": {"going_ids": user["id"], "going_names": user["name"]}}
     )
+    await db.follows.delete_many({"$or": [{"follower_id": user["id"]}, {"followee_id": user["id"]}]})
     await db.users.delete_one({"id": user["id"]})
     response.delete_cookie("vdb_session", path="/")
     return {"ok": True}

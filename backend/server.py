@@ -27,6 +27,7 @@ from routers.gamification import router as gamification_router
 from routers.obstacles import router as obstacles_router
 from routers.rides import router as rides_router
 from routers.routing import router as routing_router
+from routers.social import router as social_router
 from lib.snap import snap_pending_lanes
 
 
@@ -118,6 +119,7 @@ api_router.include_router(routing_router)
 api_router.include_router(admin_router)
 api_router.include_router(chat_router)
 api_router.include_router(moderation_router)
+api_router.include_router(social_router)
 
 # Include the router in the main app
 app.include_router(api_router)

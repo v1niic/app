@@ -87,3 +87,8 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - `POST /auth/forgot {email}` (resposta idêntica exista a conta ou não; máx. 3 pedidos/h por conta) → grava só o hash SHA-256 do token em `password_resets` (TTL 1 h) e envia o link `APP_URL/redefinir-senha?token=…` via `lib/mailer.py` (SMTP ou Resend).
 - `POST /auth/reset {token,new_password}` → uso único e atômico; troca a senha, encerra todas as sessões.
 - Frontend: `/esqueci-senha`, `/redefinir-senha`, link no Login. O host do link vem de `APP_URL`/`CORS_ORIGINS`, nunca do pedido.
+
+## Configurações e rede social
+- Auth: `POST /auth/email {new_email,password}`, `POST /auth/deactivate {password}` (`deactivated:true`, apaga sessões; `login` reativa; some de busca/placar), delete-account também apaga `follows`.
+- `routers/social.py` (`/social`, exige login; sem e-mail na resposta; ignora `seed-*` e desativados): `GET /people?q=`, `GET /people/{id}`, `GET /people/{id}/followers|following`, `POST|DELETE /people/{id}/follow` (idempotente). Coleção `follows` (par único follower→followee).
+- Frontend: `/configuracoes[/:secao]` (conta, senha, ajuda, zona-de-risco; lista no celular, menu lateral no desktop), `/ciclistas`, `/ciclistas/:id`; engrenagem no Perfil.
