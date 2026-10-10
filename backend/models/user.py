@@ -25,6 +25,7 @@ class User(BaseModel):
     badge_ids: list[str] = Field(default_factory=list)
     avatar: str = ""  # foto de perfil: data URL pequena (o navegador reduz para ~256 px)
     onboarded: bool = False  # já viu a tela de boas-vindas / tutorial
+    is_moderator: bool = False  # conta dev: analisa e aprova os alertas (calculado no servidor, nunca vem do cliente)
     created_at: datetime
 
 

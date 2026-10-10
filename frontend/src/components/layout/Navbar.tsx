@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Bike, FlagTriangleRight, Map as MapIcon, MessagesSquare, Trophy, User as UserIcon, Zap } from "lucide-react";
+import { Bike, FlagTriangleRight, Inbox, Map as MapIcon, MessagesSquare, Trophy, User as UserIcon, Zap } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -12,7 +13,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Avatar from "@/components/profile/Avatar";
 import { useAuth } from "@/hooks/useAuth";
+import { apiGet } from "@/lib/api";
 import { endSession } from "@/lib/session";
+import type { ModerationSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -27,6 +30,16 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [busy, setBusy] = useState(false);
+
+  // só a conta dev vê a caixa de alertas e o número de alertas esperando análise
+  const isMod = !!user?.is_moderator;
+  const { data: modSummary } = useQuery({
+    queryKey: ["moderation", "summary"],
+    queryFn: () => apiGet<ModerationSummary>("/moderation/summary"),
+    enabled: isMod,
+    refetchInterval: 30000,
+  });
+  const pendingCount = modSummary?.pendente ?? 0;
 
   const handleLogout = async () => {
     setBusy(true);
@@ -56,7 +69,7 @@ export default function Navbar() {
               </span>
             </Link>
             <nav className="hidden items-center gap-1 md:flex">
-              {NAV_LINKS.map((l) => (
+              {[...NAV_LINKS, ...(isMod ? [{ to: "/alertas", label: "Caixa de alertas" }] : [])].map((l) => (
                 <NavLink
                   key={l.to}
                   to={l.to}
@@ -69,6 +82,11 @@ export default function Navbar() {
                   }
                 >
                   {l.label}
+                  {l.to === "/alertas" && pendingCount > 0 && (
+                    <span className="ml-1.5 rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-[#431407]" data-testid="inbox-count">
+                      {pendingCount}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
@@ -96,6 +114,16 @@ export default function Navbar() {
                   <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="nav-menu-profile">
                     <UserIcon className="h-4 w-4" /> Meu perfil
                   </DropdownMenuItem>
+                  {isMod && (
+                    <DropdownMenuItem onClick={() => navigate("/alertas")} data-testid="nav-menu-inbox">
+                      <Inbox className="h-4 w-4" /> Caixa de alertas
+                      {pendingCount > 0 && (
+                        <span className="ml-auto rounded-full bg-orange-500 px-1.5 py-0.5 text-[10px] font-bold text-[#431407]">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     variant="destructive"
                     onClick={handleLogout}

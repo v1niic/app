@@ -16,9 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
-import { apiDetail, apiGet, apiPost, apiPut } from "@/lib/api";
+import { apiDelete, apiDetail, apiGet, apiPost, apiPut } from "@/lib/api";
 import { BIKE_LABELS } from "@/lib/types";
 import type { BadgeDef, Obstacle, User } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { fileToAvatarDataUrl } from "@/lib/image";
 import { endSession } from "@/lib/session";
 
@@ -79,6 +80,15 @@ export default function ProfilePage() {
       toast.error(err instanceof Error ? err.message : "Não foi possível ler a imagem");
     }
   };
+
+  const withdrawMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`/obstacles/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["obstacles"] });
+      toast.success("Alerta retirado");
+    },
+    onError: (err) => toast.error(apiDetail(err, "Não foi possível retirar o alerta")),
+  });
 
   const tutorialMutation = useMutation({
     mutationFn: () => apiPost<User>("/auth/onboarding", { done: false }),
@@ -238,9 +248,37 @@ export default function ProfilePage() {
                         {o.description}
                       </p>
                       <p className="mt-1 text-[11px] text-slate-500">
-                        {OBSTACLE_TYPE_LABEL(o.type)} · {o.confirms} confirmações ·{" "}
-                        {o.status === "resolvido" ? "resolvido" : "ativo"}
+                        {OBSTACLE_TYPE_LABEL(o.type)}
+                        {o.status === "ativo" || o.status === "resolvido" ? ` · ${o.confirms} confirmações` : ""}
                       </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                            o.status === "pendente" && "bg-amber-400/15 text-amber-200",
+                            o.status === "ativo" && "bg-emerald-500/15 text-emerald-300",
+                            o.status === "recusado" && "bg-red-500/15 text-red-300",
+                            o.status === "resolvido" && "bg-slate-700 text-slate-300",
+                          )}
+                          data-testid="profile-report-status"
+                        >
+                          {{ pendente: "Em análise", ativo: "No mapa", recusado: "Recusado", resolvido: "Resolvido" }[o.status] ?? o.status}
+                        </span>
+                        {(o.status === "pendente" || o.status === "recusado") && (
+                          <button
+                            type="button"
+                            onClick={() => withdrawMutation.mutate(o.id)}
+                            disabled={withdrawMutation.isPending}
+                            className="text-[11px] text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline"
+                            data-testid="profile-report-withdraw"
+                          >
+                            Retirar
+                          </button>
+                        )}
+                      </div>
+                      {o.status === "recusado" && o.reject_reason && (
+                        <p className="mt-1 text-[11px] text-red-300/80">Motivo: {o.reject_reason}</p>
+                      )}
                     </li>
                   ))}
                 </ul>

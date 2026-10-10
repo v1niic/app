@@ -74,6 +74,15 @@ export default function MapPage() {
 
   const ride = useRide();
 
+  // ?lat=&lng= chega da caixa de alertas ("Ver no mapa"): abre centralizado no ponto
+  useEffect(() => {
+    const lat = Number(searchParams.get("lat"));
+    const lng = Number(searchParams.get("lng"));
+    if (searchParams.get("lat") && searchParams.get("lng") && Number.isFinite(lat) && Number.isFinite(lng)) {
+      setFocus({ lat, lng, zoom: 18 });
+    }
+  }, [searchParams]);
+
   // ?report=1 chega do botão "Reportar" da navbar
   useEffect(() => {
     if (searchParams.get("report") === "1" && !autoReportRef.current) {

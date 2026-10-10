@@ -8,6 +8,7 @@ from fastapi import Depends, HTTPException, Request, Response
 from passlib.context import CryptContext
 
 from lib.db import db
+from lib.roles import is_moderator
 
 COOKIE_NAME = "vdb_session"
 COOKIE_MAX_AGE = 60 * 60 * 24 * 30  # 30 dias
@@ -72,4 +73,11 @@ async def get_current_user(request: Request) -> dict | None:
 async def require_user(user: dict | None = Depends(get_current_user)) -> dict:
     if user is None:
         raise HTTPException(status_code=401, detail="Faça login para continuar")
+    return user
+
+
+async def require_moderator(user: dict = Depends(require_user)) -> dict:
+    """Só a conta dev (MODERATOR_EMAILS). 403 para qualquer outro usuário logado."""
+    if not is_moderator(user):
+        raise HTTPException(status_code=403, detail="Área restrita à equipe do VaiDeBike")
     return user

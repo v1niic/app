@@ -45,7 +45,13 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
       void queryClient.invalidateQueries({ queryKey: ["me"] });
       void queryClient.invalidateQueries({ queryKey: ["stats"] });
       void queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
-      toast.success("Alerta enviado! +50 XP", { description: "Ciclistas por perto já veem o aviso no mapa." });
+      if (res.obstacle.status === "pendente") {
+        toast.success("Alerta enviado para análise", {
+          description: "Assim que a equipe aprovar, ele aparece no mapa para todos e você ganha +50 XP.",
+        });
+      } else {
+        toast.success("Alerta publicado! +50 XP", { description: "Ciclistas por perto já veem o aviso no mapa." });
+      }
       for (const b of res.new_badges) {
         toast.success(`Novo selo desbloqueado: ${b.name}`, { description: b.desc });
         confetti({ particleCount: 130, spread: 75, origin: { y: 0.7 }, colors: ["#10B981", "#F97316", "#FBBF24"] });
@@ -67,7 +73,7 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
         <DialogHeader>
           <DialogTitle className="font-heading">Reportar obstáculo</DialogTitle>
           <DialogDescription>
-            Marque o ponto exato para avisar quem pedala por aqui.
+            Marque o ponto exato. A equipe analisa o alerta antes de ele aparecer no mapa para todos.
           </DialogDescription>
         </DialogHeader>
 

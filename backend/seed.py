@@ -148,10 +148,13 @@ async def main(snap: bool = True) -> None:
             "reports_count": u["reports_count"],
             "confirms_count": u["confirms_count"],
             "badge_ids": [],
-            "password_hash": hash_password("senha123"),
-            "created_at": now,
         }
-        await db.users.update_one({"email": u["email"]}, {"$set": doc}, upsert=True)
+        # senha e data só na criação: rodar o seed de novo NÃO devolve a conta dev à senha pública
+        await db.users.update_one(
+            {"email": u["email"]},
+            {"$set": doc, "$setOnInsert": {"password_hash": hash_password("senha123"), "created_at": now}},
+            upsert=True,
+        )
         fresh = await db.users.find_one({"email": u["email"]})
         users_by_email[u["email"]] = fresh
         fresh, _ = await apply_badges(fresh)

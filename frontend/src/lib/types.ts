@@ -15,6 +15,7 @@ export interface User {
   badge_ids: string[];
   avatar: string;
   onboarded: boolean;
+  is_moderator: boolean;
   created_at: string;
 }
 
@@ -38,9 +39,22 @@ export interface Obstacle {
   description: string;
   lat: number;
   lng: number;
+  /** pendente = em análise · ativo = aprovado (no mapa) · recusado · resolvido */
   status: string;
   confirms: number;
   created_at: string;
+  reject_reason?: string;
+}
+
+export interface ModerationItem extends Obstacle {
+  nearby_same_type: number;
+  nearest_same_type_m: number | null;
+}
+
+export interface ModerationSummary {
+  pendente: number;
+  recusado: number;
+  ativo: number;
 }
 
 export interface BikeLane {
