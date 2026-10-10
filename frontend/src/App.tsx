@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Navbar from "@/components/layout/Navbar";
+import Onboarding from "@/components/onboarding/Onboarding";
 import { Toaster } from "@/components/ui/sonner";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Onboarding />
       <Toaster />
     </div>
   );

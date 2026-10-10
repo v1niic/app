@@ -13,6 +13,8 @@ export interface User {
   reports_count: number;
   confirms_count: number;
   badge_ids: string[];
+  avatar: string;
+  onboarded: boolean;
   created_at: string;
 }
 

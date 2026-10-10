@@ -53,3 +53,30 @@ def test_ride_history_and_delete_account():
         assert c.post("/auth/delete-account", json={"password": "senha123"}).status_code == 200
         assert c.get("/auth/me").json() is None
         assert c.post("/auth/login", json={"email": email, "password": "senha123"}).status_code == 401
+
+
+_PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+
+def test_avatar_upload_validation_and_removal():
+    with httpx.Client(base_url=API_URL, timeout=30.0) as c:
+        user, _, _ = _register(c)
+        assert user["avatar"] == ""
+        ok = c.put("/auth/me", json={"avatar": _PIXEL})
+        assert ok.status_code == 200 and ok.json()["avatar"] == _PIXEL
+        assert c.get("/auth/me").json()["avatar"] == _PIXEL
+        # só imagens pequenas em data URL são aceitas
+        assert c.put("/auth/me", json={"avatar": "https://exemplo.com/foto.png"}).status_code == 422
+        assert c.put("/auth/me", json={"avatar": "data:image/png;base64," + "A" * 200_000}).status_code == 422
+        assert c.put("/auth/me", json={"avatar": ""}).json()["avatar"] == ""
+
+
+def test_onboarding_flag_roundtrip():
+    with httpx.Client(base_url=API_URL, timeout=30.0) as c:
+        user, _, _ = _register(c)
+        assert user["onboarded"] is False
+        assert c.post("/auth/onboarding", json={"done": True}).json()["onboarded"] is True
+        assert c.get("/auth/me").json()["onboarded"] is True
+        assert c.post("/auth/onboarding", json={"done": False}).json()["onboarded"] is False
+    with httpx.Client(base_url=API_URL, timeout=30.0) as visitor:
+        assert visitor.post("/auth/onboarding", json={"done": True}).status_code == 401

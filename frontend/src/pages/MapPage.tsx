@@ -5,7 +5,7 @@ import confetti from "canvas-confetti";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { FlagTriangleRight, Layers, LocateFixed, Volume2, VolumeX, X } from "lucide-react";
+import { FlagTriangleRight, Layers, LocateFixed, Navigation, Volume2, VolumeX, X } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import BottomSheet from "@/components/map/BottomSheet";
@@ -62,6 +62,7 @@ export default function MapPage() {
   const [reportCoords, setReportCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Obstacle | null>(null);
+  const [tapPoint, setTapPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [focus, setFocus] = useState<FocusRequest | null>(null);
   const [follow, setFollow] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
@@ -124,6 +125,7 @@ export default function MapPage() {
   }, []);
 
   const onSelectObstacle = useCallback((o: Obstacle) => {
+    setTapPoint(null);
     setSelected(o);
     setFollow(false);
     setFocus({ lat: o.lat, lng: o.lng, zoom: 16 });
@@ -131,18 +133,35 @@ export default function MapPage() {
 
   const onUserPan = useCallback(() => setFollow(false), []);
 
-  // segurar o dedo no mapa = "ir para cá"
+  // toque num ponto vazio do mapa = pino com as opções "ir até aqui" / "reportar aqui"
   const { chooseDestination } = nav;
-  const onLongPress = useCallback(
+  const onTap = useCallback(
     (lat: number, lng: number) => {
-      if (phase === "navigating" || phase === "arrived") {
-        toast.info("Encerre a navegação atual para escolher outro destino");
-        return;
-      }
-      chooseDestination({ lat, lng, name: "Ponto escolhido no mapa" });
+      if (phase === "navigating" || phase === "arrived") return; // guiando: toque solto não deve atrapalhar
+      setSelected(null);
+      setFollow(false);
+      setTapPoint({ lat, lng });
     },
-    [phase, chooseDestination],
+    [phase],
   );
+
+  const goToTapPoint = () => {
+    if (!tapPoint) return;
+    chooseDestination({ ...tapPoint, name: "Ponto escolhido no mapa" });
+    setTapPoint(null);
+  };
+
+  const reportAtTapPoint = () => {
+    if (!tapPoint) return;
+    setReportCoords(tapPoint);
+    setModalOpen(true);
+    setTapPoint(null);
+  };
+
+  // ao entrar na navegação, o pino some
+  useEffect(() => {
+    if (phase !== "idle") setTapPoint(null);
+  }, [phase]);
 
   const toggleType = (t: ObstacleType) =>
     setTypeFilter((prev) => {
@@ -217,7 +236,8 @@ export default function MapPage() {
         bottomInset={inset}
         pickMode={pickMode}
         onPick={onPick}
-        onLongPress={onLongPress}
+        onTap={onTap}
+        tapPoint={tapPoint}
         onSelectObstacle={onSelectObstacle}
         focus={focus}
         className="absolute inset-0 h-full w-full"
@@ -354,6 +374,32 @@ export default function MapPage() {
       >
         <NavigationPanel nav={nav} ride={ride} lanes={lanes} sheetIndex={sheetIndex} />
       </BottomSheet>
+
+      {/* Cartão do ponto tocado: ir até lá ou reportar um perigo ali */}
+      {tapPoint && !selected && (
+        <Card
+          className="absolute left-3 right-3 z-[1170] border-slate-700/80 bg-slate-900/95 backdrop-blur-md bottom-[calc(var(--inset)+12px)] md:bottom-6 md:left-[404px] md:right-auto md:w-[340px]"
+          data-testid="map-tap-card"
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="font-heading text-sm">Ponto no mapa</CardTitle>
+            <CardDescription className="text-xs">O que você quer fazer aqui?</CardDescription>
+            <CardAction>
+              <Button variant="ghost" size="icon-xs" onClick={() => setTapPoint(null)} aria-label="Fechar" data-testid="map-tap-close">
+                <X className="h-4 w-4" />
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-2">
+            <Button onClick={goToTapPoint} data-testid="map-tap-go">
+              <Navigation className="h-4 w-4" /> Ir até aqui
+            </Button>
+            <Button variant="outline" onClick={reportAtTapPoint} data-testid="map-tap-report">
+              <FlagTriangleRight className="h-4 w-4" /> Reportar aqui
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Painel do alerta selecionado (deslize para baixo para fechar) */}
       {selected && (

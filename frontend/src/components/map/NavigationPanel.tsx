@@ -267,7 +267,7 @@ export default function NavigationPanel({ nav, ride, lanes, sheetIndex }: PanelP
       )}
 
       <p className="text-xs leading-relaxed text-slate-500">
-        Dica: <strong className="text-slate-300">segure o dedo no mapa</strong> para escolher o destino ali.
+        Dica: <strong className="text-slate-300">toque no mapa</strong> para escolher o destino ali ou reportar um perigo.
       </p>
 
       {sheetIndex > 0 && (
