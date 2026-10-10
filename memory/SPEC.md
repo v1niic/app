@@ -92,3 +92,7 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - Auth: `POST /auth/email {new_email,password}`, `POST /auth/deactivate {password}` (`deactivated:true`, apaga sessões; `login` reativa; some de busca/placar), delete-account também apaga `follows`.
 - `routers/social.py` (`/social`, exige login; sem e-mail na resposta; ignora `seed-*` e desativados): `GET /people?q=`, `GET /people/{id}`, `GET /people/{id}/followers|following`, `POST|DELETE /people/{id}/follow` (idempotente). Coleção `follows` (par único follower→followee).
 - Frontend: `/configuracoes[/:secao]` (conta, senha, ajuda, zona-de-risco; lista no celular, menu lateral no desktop), `/ciclistas`, `/ciclistas/:id`; engrenagem no Perfil.
+
+## Bolha de viagem e segundo plano
+- Fase `navigating`: `NavBubble` (pílula flutuante, anel de progresso, minimizável em bolinha, lista de curvas ao tocar, Encerrar com confirmação) substitui o BottomSheet; informa a altura via `onInsetChange` para os botões do mapa.
+- `useWakeLock` mantém a tela ligada; `useRide` repede a posição ao voltar do segundo plano; `useNavigation` guarda `vdb_trip` (destino, 3 h) e o mapa oferece "Retomar a viagem?". Avisos sonoros/vibração em segundo plano exigem app nativo (Capacitor).

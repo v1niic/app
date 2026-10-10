@@ -14,6 +14,7 @@ import type { FocusRequest } from "@/components/map/FortalezaMap";
 import HazardAlertCard from "@/components/map/HazardAlertCard";
 import HazardIcon from "@/components/map/HazardIcon";
 import MapHud from "@/components/map/MapHud";
+import NavBubble from "@/components/map/NavBubble";
 import NavigationPanel, { ManeuverBanner } from "@/components/map/NavigationPanel";
 import ReportObstacleModal from "@/components/map/ReportObstacleModal";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useHazardWatch } from "@/hooks/useHazardWatch";
-import { useNavigation } from "@/hooks/useNavigation";
+import { clearSavedTrip, readSavedTrip, useNavigation } from "@/hooks/useNavigation";
+import type { SavedTrip } from "@/hooks/useNavigation";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import type { NavPhase } from "@/hooks/useNavigation";
 import { useRide } from "@/hooks/useRide";
 import { apiDetail, apiGet, apiPost } from "@/lib/api";
@@ -96,6 +99,20 @@ export default function MapPage() {
 
   const nav = useNavigation(ride, filtered);
   const phase = nav.phase;
+
+  // tela ligada durante a viagem; e, se o sistema fechou o app em segundo plano, oferece retomar o trajeto
+  useWakeLock(ride.riding || phase === "navigating");
+  const [savedTrip, setSavedTrip] = useState<SavedTrip | null>(() => readSavedTrip());
+  const resumeTrip = () => {
+    if (!savedTrip) return;
+    nav.chooseDestination(savedTrip.destination);
+    setSavedTrip(null);
+    toast.info("Rota recalculada. Toque em Iniciar para continuar a viagem.");
+  };
+  const dismissSavedTrip = () => {
+    clearSavedTrip();
+    setSavedTrip(null);
+  };
 
   // radar de perigos: distância/direção em tempo real, aviso por som, voz e vibração a cada nível
   const watch = useHazardWatch({ ride, obstacles: filtered, lanes, soundOn });
@@ -374,15 +391,34 @@ export default function MapPage() {
       )}
 
       {/* Painel inferior arrastável: busca → prévia da rota → guiando → chegada */}
-      <BottomSheet
-        snaps={SHEET_SNAPS[phase]}
-        index={sheetIndex}
-        onIndexChange={setSheetIndex}
-        onInsetChange={setInset}
-        testId="nav-sheet"
-      >
-        <NavigationPanel nav={nav} ride={ride} lanes={lanes} sheetIndex={sheetIndex} />
-      </BottomSheet>
+      {phase === "navigating" ? (
+        <NavBubble nav={nav} onInsetChange={setInset} />
+      ) : (
+        <BottomSheet
+          snaps={SHEET_SNAPS[phase]}
+          index={sheetIndex}
+          onIndexChange={setSheetIndex}
+          onInsetChange={setInset}
+          testId="nav-sheet"
+        >
+          <NavigationPanel nav={nav} ride={ride} lanes={lanes} sheetIndex={sheetIndex} />
+        </BottomSheet>
+      )}
+
+      {/* Viagem interrompida (o celular fechou o app em segundo plano): retomar? */}
+      {savedTrip && phase === "idle" && (
+        <div
+          className="absolute left-3 right-3 top-3 z-[1190] rounded-2xl border border-emerald-400/40 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md md:left-[404px] md:right-auto md:w-[380px]"
+          data-testid="resume-trip"
+        >
+          <p className="text-sm font-semibold text-white">Retomar a viagem?</p>
+          <p className="mt-0.5 truncate text-xs text-slate-400">Você estava indo para {savedTrip.destination.name}.</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Button size="sm" onClick={resumeTrip} data-testid="resume-trip-yes">Retomar</Button>
+            <Button size="sm" variant="outline" onClick={dismissSavedTrip}>Descartar</Button>
+          </div>
+        </div>
+      )}
 
       {/* Cartão do ponto tocado: ir até lá ou reportar um perigo ali */}
       {tapPoint && !selected && (
