@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Camera, CircleHelp, LogOut, Save } from "lucide-react";
+import { Camera, Save, Settings, Users } from "lucide-react";
 
 import BadgeCard from "@/components/gamification/BadgeCard";
 import Avatar from "@/components/profile/Avatar";
-import AccountSecurity from "@/components/profile/AccountSecurity";
 import RideHistory from "@/components/profile/RideHistory";
 import UserStatsCard from "@/components/profile/UserStatsCard";
 import { Button } from "@/components/ui/button";
@@ -18,14 +17,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { apiDelete, apiDetail, apiGet, apiPost, apiPut } from "@/lib/api";
 import { BIKE_LABELS } from "@/lib/types";
-import type { BadgeDef, Obstacle, User } from "@/lib/types";
+import type { BadgeDef, Obstacle, PublicUser, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { fileToAvatarDataUrl } from "@/lib/image";
-import { endSession } from "@/lib/session";
 
 export default function ProfilePage() {
   const { data: user, isLoading } = useAuth();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: badges = [] } = useQuery({
@@ -90,16 +87,11 @@ export default function ProfilePage() {
     onError: (err) => toast.error(apiDetail(err, "Não foi possível retirar o alerta")),
   });
 
-  const tutorialMutation = useMutation({
-    mutationFn: () => apiPost<User>("/auth/onboarding", { done: false }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["me"] }), // o gate do App reabre o tutorial
+  const { data: social } = useQuery({
+    queryKey: ["people", "one", user?.id],
+    queryFn: () => apiGet<PublicUser>(`/social/people/${user?.id}`),
+    enabled: !!user,
   });
-
-  const logout = async () => {
-    await endSession();
-    navigate("/");
-    toast.success("Sessão encerrada. Boa pedalada!");
-  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 pb-24 md:pb-10">
@@ -162,21 +154,30 @@ export default function ProfilePage() {
                 <p className="mt-1 text-xs text-slate-400">
                   Nível {user.level} · {user.xp} XP · pedala de {BIKE_LABELS[user.bike_type] ?? user.bike_type}
                 </p>
+                <p className="mt-1 text-xs text-slate-300" data-testid="profile-follow-counts">
+                  <Link to="/ciclistas" className="hover:text-emerald-400"><b className="text-white">{social?.followers_count ?? 0}</b> seguidores</Link>
+                  {" · "}
+                  <Link to="/ciclistas" className="hover:text-emerald-400"><b className="text-white">{social?.following_count ?? 0}</b> seguindo</Link>
+                </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => tutorialMutation.mutate()}
-                disabled={tutorialMutation.isPending}
-                data-testid="profile-tutorial"
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/ciclistas"
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-700 px-3 text-sm font-medium text-slate-200 hover:bg-slate-800"
+                data-testid="profile-people"
               >
-                <CircleHelp className="h-4 w-4" /> Ver tutorial
-              </Button>
-              <Button variant="destructive" size="sm" onClick={logout} data-testid="profile-logout">
-                <LogOut className="h-4 w-4" /> Sair
-              </Button>
+                <Users className="h-4 w-4" /> Ciclistas
+              </Link>
+              <Link
+                to="/configuracoes"
+                aria-label="Configurações"
+                title="Configurações"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-200 hover:bg-slate-800 hover:text-emerald-400"
+                data-testid="profile-settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
             </div>
           </div>
 
@@ -292,7 +293,6 @@ export default function ProfilePage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <RideHistory />
-            <AccountSecurity />
           </div>
 
           {/* Selos */}

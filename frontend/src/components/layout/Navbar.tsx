@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Bike, FlagTriangleRight, Inbox, Map as MapIcon, MessagesSquare, Trophy, User as UserIcon, Zap } from "lucide-react";
+import { Bike, FlagTriangleRight, Inbox, Map as MapIcon, MessagesSquare, Settings, Trophy, Users, User as UserIcon, Zap } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { to: "/map", label: "Mapa" },
   { to: "/missions", label: "Missões" },
   { to: "/chat", label: "Chat" },
+  { to: "/ciclistas", label: "Ciclistas" },
   { to: "/profile", label: "Perfil" },
 ];
 
@@ -110,9 +111,15 @@ export default function Navbar() {
                   <Avatar name={user.name} src={user.avatar} className="h-7 w-7" textClassName="text-xs" />
                   <span className="hidden text-xs font-semibold text-slate-200 sm:inline">Nv. {user.level}</span>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem onClick={() => navigate("/profile")} data-testid="nav-menu-profile">
                     <UserIcon className="h-4 w-4" /> Meu perfil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/ciclistas")} data-testid="nav-menu-people">
+                    <Users className="h-4 w-4" /> Ciclistas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/configuracoes")} data-testid="nav-menu-settings">
+                    <Settings className="h-4 w-4" /> Configurações
                   </DropdownMenuItem>
                   {isMod && (
                     <DropdownMenuItem onClick={() => navigate("/alertas")} data-testid="nav-menu-inbox">

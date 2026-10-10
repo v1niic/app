@@ -68,3 +68,8 @@ Para o e-mail funcionar, no projeto da **API** na Vercel (Production) crie:
 - **Opção A, Gmail:** ative a verificação em 2 etapas na conta Google, crie uma "senha de app" (myaccount.google.com/apppasswords) e defina `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=seuemail@gmail.com`, `SMTP_PASSWORD=<senha de app de 16 letras>`, `MAIL_FROM=VaiDeBike <seuemail@gmail.com>`
 - **Opção B, Resend:** `RESEND_API_KEY` e `MAIL_FROM` (para enviar a qualquer pessoa, é preciso verificar um domínio seu no Resend)
 Depois faça o Redeploy. Sem essas variáveis o pedido "funciona" na tela, mas nenhum e-mail sai.
+
+## 9. Configurações e seguir ciclistas
+- **Configurações** (engrenagem no Perfil, ou menu do avatar → Configurações): nome de usuário, e-mail (pede a senha), senha, tutorial, desativar (temporário: entrar de novo reativa) e excluir a conta.
+- **Ciclistas** (`/ciclistas`): buscar por nome, seguir/deixar de seguir, ver seguidores e seguindo; perfil público em `/ciclistas/<id>` (nunca mostra e-mail). Contas demo e desativadas não aparecem.
+- Não há variável nova: nada a configurar na Vercel.
