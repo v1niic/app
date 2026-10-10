@@ -131,7 +131,7 @@ export default function MissionsPage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-sm text-slate-400">
-                  Placar indisponível agora — pedale, você pode ser o primeiro.
+                  Ninguém pontuou ainda — pedale e seja o primeiro do placar.
                 </TableCell>
               </TableRow>
             )}

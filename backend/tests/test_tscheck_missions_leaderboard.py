@@ -25,10 +25,11 @@ def test_missions_progress_for_demo_user():
         assert missions["m2"]["completed"] is True
 
 
-def test_leaderboard_has_maria_at_top(client):
+def test_leaderboard_hides_seed_demo_accounts(client):
+    """As contas de demonstração do seed não aparecem no placar nem na contagem de ciclistas."""
     resp = client.get("/leaderboard")
     assert resp.status_code == 200, resp.text
-    board = resp.json()
-    assert len(board) >= 3
-    assert board[0]["rank"] == 1
-    assert board[0]["name"] == "Maria Pedalante"
+    names = [e["name"] for e in resp.json()]
+    assert "Maria Pedalante" not in names and "Ciclista Demo" not in names
+    ranks = [e["rank"] for e in resp.json()]
+    assert ranks == list(range(1, len(ranks) + 1))

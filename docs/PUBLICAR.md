@@ -45,7 +45,7 @@ Obs.: no iOS a vibração (`navigator.vibrate`) não existe; som, voz e alerta v
 2. Abra `https://SEU-DOMINIO/api/admin/seed?token=SUA_FRASE` → cria ciclovias, alertas de exemplo e contas demo.
 3. Abra `https://SEU-DOMINIO/api/admin/snap?token=SUA_FRASE` (repita se `pendentes` ≠ 0) → ajusta as ciclovias às ruas.
 4. Depois **apague a variável `SEED_TOKEN`**: sem ela, as duas rotas deixam de existir.
-Atenção: as contas demo (`demo@vaidebike.app` etc.) usam a senha pública `senha123` — apague-as do Atlas antes de abrir o app ao público real.
+As contas demo (`demo@vaidebike.app`, `maria@…`, `joao@…`; senha `senha123`) não aparecem na tela de login, no placar nem na contagem de ciclistas, mas ainda existem e a senha é conhecida: apague-as do Atlas (coleção `users`, ids que começam com `seed-`) antes de abrir o app ao público real. Os alertas de exemplo do mapa foram criados por elas.
 
 ## 6. Dois projetos na Vercel (API e site separados)
 Se o projeto da API foi criado com Root Directory = `backend`, ele só serve `/api`. O site é um **segundo projeto**:

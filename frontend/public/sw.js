@@ -1,6 +1,6 @@
 // Service worker do VaiDeBike: deixa o app instalável e abre mesmo sem rede (casca do app).
 // A API (/api) NUNCA é guardada: alertas de perigo precisam ser sempre os mais recentes.
-const CACHE = "vaidebike-v1";
+const CACHE = "vaidebike-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png"];
 
 self.addEventListener("install", (event) => {

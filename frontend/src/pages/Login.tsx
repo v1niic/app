@@ -111,10 +111,6 @@ export default function Login() {
               Cadastre-se grátis
             </Link>
           </p>
-          <p className="mt-4 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-center text-[11px] text-slate-500">
-            Conta demo: <span className="font-mono text-slate-300">demo@vaidebike.app</span> · senha{" "}
-            <span className="font-mono text-slate-300">senha123</span>
-          </p>
         </div>
       </div>
     </div>
