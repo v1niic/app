@@ -96,3 +96,8 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 ## Bolha de viagem e segundo plano
 - Fase `navigating`: `NavBubble` (pílula flutuante, anel de progresso, minimizável em bolinha, lista de curvas ao tocar, Encerrar com confirmação) substitui o BottomSheet; informa a altura via `onInsetChange` para os botões do mapa.
 - `useWakeLock` mantém a tela ligada; `useRide` repede a posição ao voltar do segundo plano; `useNavigation` guarda `vdb_trip` (destino, 3 h) e o mapa oferece "Retomar a viagem?". Avisos sonoros/vibração em segundo plano exigem app nativo (Capacitor).
+
+## Borracharias, oficinas e avaliações
+- Coleções `shops` (kind borracharia|oficina|autoreparo, status pendente|ativo, source osm|comunidade, rating_avg/count) e `shop_reviews` (par único shop+user). `routers/shops.py`: `GET /shops` (ativos), `POST /shops` (sugestão → pendente; moderador publica direto; máx. 5 pendentes; 409 duplicata ≤40 m com mesmo nome), `GET /shops/{id}` (com avaliações, exige login), `PUT|DELETE /shops/{id}/review`, moderação `GET /shops/moderation/queue`, `POST /shops/{id}/approve|reject`.
+- `GET /admin/import-shops?token=` (SEED_TOKEN): Overpass → upsert por `osm_id`; nenhum dado inventado no seed.
+- Frontend: `lib/shops.ts`, marcadores em `FortalezaMap` (props `shops`/`onSelectShop`), `ShopCard`, `SuggestShopModal`, aba "Locais" na caixa de alertas, toggle em Camadas.
