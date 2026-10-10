@@ -39,6 +39,7 @@ async def register(req: RegisterRequest, response: Response):
         "confirms_count": 0,
         "badge_ids": [],
         "password_hash": hash_password(req.password),
+        "password_changed": True,  # a própria pessoa escolheu a senha
         "created_at": datetime.now(timezone.utc),
     }
     await db.users.insert_one(doc)
@@ -93,7 +94,10 @@ async def change_password(req: PasswordChange, request: Request, user: dict = De
         raise HTTPException(status_code=401, detail="Não autenticado")
     if not verify_password(req.current_password, user["password_hash"]):
         raise HTTPException(status_code=400, detail="A senha atual está incorreta")
-    await db.users.update_one({"id": user["id"]}, {"$set": {"password_hash": hash_password(req.new_password)}})
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"password_hash": hash_password(req.new_password), "password_changed": True}},
+    )
     # encerra os outros aparelhos; esta sessão continua ativa
     await db.sessions.delete_many({"user_id": user["id"], "token": {"$ne": token_from(request)}})
     return {"ok": True}
@@ -108,6 +112,8 @@ async def delete_account(req: AccountDelete, request: Request, response: Respons
         raise HTTPException(status_code=400, detail="Senha incorreta")
     await db.sessions.delete_many({"user_id": user["id"]})
     await db.rides.delete_many({"user_id": user["id"]})
+    # alertas ainda não aprovados somem com a conta; os já publicados continuam no mapa para proteger a comunidade
+    await db.obstacles.delete_many({"user_id": user["id"], "status": {"$in": ["pendente", "recusado"]}})
     await db.chat_messages.delete_many({"user_id": user["id"]})
     await db.meetups.delete_many({"user_id": user["id"]})
     await db.meetups.update_many(

@@ -4,6 +4,7 @@ from lib.db import db
 from lib.dates import utc_aware
 from models.game import MissionProgress
 from models.user import User
+from lib.roles import is_moderator
 
 LEVEL_STEP = 500  # a cada 500 XP, um novo nível
 
@@ -44,6 +45,7 @@ def user_from_doc(doc: dict) -> User:
     data = dict(doc)
     created = utc_aware(data.get("created_at"))
     data["created_at"] = created if created else data.get("created_at")
+    data["is_moderator"] = is_moderator(doc)
     return User(**data)
 
 

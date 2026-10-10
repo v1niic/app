@@ -102,7 +102,7 @@ const SLIDES = (firstName: string): Slide[] => [
       <div className="w-full max-w-[300px] space-y-2">
         {[
           { icon: Bike, label: "Cada km pedalado", xp: "+10 XP" },
-          { icon: FlagTriangleRight, label: "Reportar um perigo", xp: "+50 XP" },
+          { icon: FlagTriangleRight, label: "Perigo reportado e aprovado", xp: "+50 XP" },
           { icon: Medal, label: "Confirmar um alerta", xp: "+25 XP" },
         ].map((r) => (
           <div key={r.label} className="flex items-center gap-3 rounded-xl border border-slate-700/70 bg-slate-800/60 px-3 py-2.5">

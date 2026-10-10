@@ -76,3 +76,9 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - API: `GET/POST /api/chat/messages`, `DELETE /api/chat/messages/{id}`, `GET/POST /api/meetups`, `POST /api/meetups/{id}/join` (alterna), `DELETE /api/meetups/{id}`.
 - Excluir a conta apaga mensagens e encontros da pessoa e a remove das listas de presença.
 - Ainda não há moderação (denunciar/banir). Antes de abrir ao público, adicionar denúncia e um papel de moderador.
+
+## Alertas moderados (caixa de alertas)
+- Usuário comum: `POST /obstacles` → `status=pendente` (sem XP, máx. 10 pendentes, 429). Moderador (`MODERATOR_EMAILS`, seed exige `password_changed`) publica direto (`ativo`).
+- Mapa público só lista `ativo`/`resolvido`; `pendente`/`recusado` público → 403. Autor vê os seus (`mine`) e pode retirar: `DELETE /obstacles/{id}`.
+- `/api/moderation` (só moderador): `GET /summary`, `GET /queue?status=pendente|recusado` (dica de duplicata em 60 m), `POST /{id}/approve` (edição opcional; +XP ao autor uma única vez, atômico), `POST /{id}/reject` (motivo ≤200).
+- Frontend: `/alertas` (AlertsInboxPage + MiniMap), badge na Navbar, `User.is_moderator`.

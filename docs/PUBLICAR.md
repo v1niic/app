@@ -52,3 +52,11 @@ Se o projeto da API foi criado com Root Directory = `backend`, ele só serve `/a
 New Project → mesmo repositório → **Root Directory = `frontend`** (Framework: Vite) → Deploy. Sem variáveis de ambiente.
 O `frontend/vercel.json` repassa `/api/*` para o projeto da API (se o domínio da API mudar, troque-o ali) e faz o fallback das rotas do React (`/map`, `/profile`…) para o `index.html`.
 O build usa `vite build` direto (sem `tsc`), para um erro de tipo não derrubar o deploy.
+
+## 7. Caixa de alertas (moderação)
+Alertas de usuários comuns entram como **Em análise** e só aparecem no mapa depois de aprovados (o autor ganha +50 XP na aprovação, e o nome dele aparece no alerta).
+1. No projeto da **API** na Vercel, crie a variável `MODERATOR_EMAILS` = `demo@vaidebike.app` (Production; vários e-mails separados por vírgula) e faça o Redeploy.
+2. Entre com a conta demo (`senha123`) e **troque a senha** em Perfil → Conta e segurança. Enquanto a senha padrão não for trocada, a conta NÃO é moderadora (trava de segurança).
+3. Abra `/alertas` (link "Caixa de alertas" no menu): aprove, ajuste ou recuse (com motivo).
+Só liste e-mails de contas que já existem. Antes de lançar: apague `SEED_TOKEN`/`HEALTH_DEBUG` e as contas demo.
+Testes de moderação: defina `MODERATOR_TEST_EMAIL` e `MODERATOR_TEST_PASSWORD` para rodar os casos de aprovação.
