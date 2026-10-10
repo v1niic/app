@@ -87,3 +87,5 @@ Depois faça o Redeploy. Sem essas variáveis o pedido "funciona" na tela, mas n
 - Os dados importados exigem crédito "© colaboradores do OpenStreetMap" (já aparece na bolha e no rodapé do mapa).
 
 **Remover um local do mapa:** abra o ícone no mapa → no fim da bolha, "Remover este local do mapa" (pede confirmação e apaga também as avaliações). Só aparece para quem adicionou o local e para a conta dev.
+
+**Remover um alerta do mapa (conta dev):** toque no alerta → no fim do cartão, "Remover alerta do mapa" (pede confirmação). Vale para qualquer alerta, inclusive os já aprovados e os "resolvidos". O XP que o ciclista já ganhou não é retirado. Usuários comuns só retiram os próprios alertas que ainda estão em análise ou recusados (pelo Perfil).

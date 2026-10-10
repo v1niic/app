@@ -131,3 +131,11 @@ def test_moderator_own_reports_are_published_directly():
         mod.post(f"/obstacles/{created.json()['obstacle']['id']}/resolve")
     finally:
         mod.close()
+
+
+def test_regular_user_cannot_delete_published_alert():
+    c, _ = _author()
+    first = httpx.get(f"{API_URL}/obstacles", timeout=30.0).json()
+    if not first:
+        return
+    assert c.delete(f"/obstacles/{first[0]['id']}").status_code == 404
