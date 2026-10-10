@@ -115,7 +115,21 @@ async def shop_detail(shop_id: str, user: dict = Depends(require_user)):
     if mine is None:
         own = await db.shop_reviews.find_one({"shop_id": shop_id, "user_id": user["id"]})
         mine = ShopReview(**{k: v for k, v in own.items() if k in ShopReview.model_fields}) if own else None
-    return ShopDetail(**_public(doc).model_dump(), reviews=reviews, my_review=mine)
+    can_delete = is_moderator(user) or (bool(doc.get("added_by")) and doc.get("added_by") == user["id"])
+    return ShopDetail(**_public(doc).model_dump(), reviews=reviews, my_review=mine, can_delete=can_delete)
+
+
+@router.delete("/{shop_id}")
+async def delete_shop(shop_id: str, user: dict = Depends(require_user)):
+    """Remove o local do mapa (e as avaliações dele). Só quem o sugeriu ou a conta dev."""
+    doc = await db.shops.find_one({"id": shop_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Local não encontrado")
+    if not (is_moderator(user) or (doc.get("added_by") and doc.get("added_by") == user["id"])):
+        raise HTTPException(status_code=403, detail="Só quem adicionou o local ou a equipe pode removê-lo")
+    await db.shop_reviews.delete_many({"shop_id": shop_id})
+    await db.shops.delete_one({"id": shop_id})
+    return {"ok": True}
 
 
 @router.put("/{shop_id}/review", response_model=ShopDetail)

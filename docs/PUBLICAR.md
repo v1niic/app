@@ -85,3 +85,5 @@ Depois faça o Redeploy. Sem essas variáveis o pedido "funciona" na tela, mas n
 - **Encher o mapa com locais reais (uma vez):** com a variável `SEED_TOKEN` criada na API (como na seção 5), abra `https://SEU-API/api/admin/import-shops?token=SEU_TOKEN`. Ele busca no OpenStreetMap as oficinas, lojas de pneu e pontos de autorreparo de Fortaleza e responde `{"ok":true,"encontrados":…,"novos":…}`. Pode repetir quando quiser (não apaga avaliações). Se vier `overpass_indisponivel`, tente de novo em alguns minutos. Depois apague o `SEED_TOKEN`.
 - O OpenStreetMap nem sempre tem telefone e horário. Quem souber completa: toque num ponto vazio do mapa → "Há uma borracharia/oficina aqui? Adicionar". A sugestão vai para **Caixa de alertas → aba Locais**, e o que a equipe aprova aparece para todos. A conta dev publica direto.
 - Os dados importados exigem crédito "© colaboradores do OpenStreetMap" (já aparece na bolha e no rodapé do mapa).
+
+**Remover um local do mapa:** abra o ícone no mapa → no fim da bolha, "Remover este local do mapa" (pede confirmação e apaga também as avaliações). Só aparece para quem adicionou o local e para a conta dev.
