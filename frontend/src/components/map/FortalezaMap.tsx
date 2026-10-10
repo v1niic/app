@@ -40,15 +40,16 @@ interface FortalezaMapProps {
   bottomInset?: number;
   pickMode?: boolean;
   onPick?: (lat: number, lng: number) => void;
-  /** segurar o dedo/mouse ~0,5 s no mapa (escolher destino) */
-  onLongPress?: (lat: number, lng: number) => void;
+  /** toque simples num ponto vazio do mapa (escolher destino / reportar); arrastar e pinça não contam */
+  onTap?: (lat: number, lng: number) => void;
+  /** ponto tocado, marcado com um pino até o usuário decidir o que fazer */
+  tapPoint?: { lat: number; lng: number } | null;
   onSelectObstacle?: (o: Obstacle) => void;
   focus?: FocusRequest | null;
   className?: string;
 }
 
 const FORTALEZA_CENTER: L.LatLngExpression = [-3.7319, -38.5267];
-const LONG_PRESS_MS = 550;
 const POS_ANIM_MS = 900;
 
 /** Menor giro entre dois ângulos — evita a seta dar a volta inteira ao passar de 359° para 1°. */
@@ -85,9 +86,16 @@ const DEST_ICON = L.divIcon({
   iconAnchor: [16, 40],
 });
 
+const TAP_ICON = L.divIcon({
+  className: "vdb-user-wrap",
+  html: `<span class="vdb-tap" data-testid="map-tap-pin"><span class="vdb-tap-ring"></span><svg viewBox="0 0 32 42" aria-hidden="true"><path d="M16 1C8 1 2 7 2 15c0 10 14 25 14 25s14-15 14-25C30 7 24 1 16 1z" fill="#38BDF8" stroke="#ffffff" stroke-width="2.5"/><circle cx="16" cy="15" r="5" fill="#ffffff"/></svg></span>`,
+  iconSize: [32, 42],
+  iconAnchor: [16, 40],
+});
+
 /**
  * Mapa escuro de Fortaleza: ciclovias/ciclofaixas, marcadores de obstáculos, rota de navegação e o ciclista.
- * Gestos: arrastar, pinça para zoom, duplo toque e segurar para escolher destino (nativos do Leaflet + long-press).
+ * Gestos: arrastar, pinça para zoom, duplo toque (nativos do Leaflet) e toque simples para marcar um ponto.
  */
 export default function FortalezaMap({
   bikeLanes,
@@ -106,7 +114,8 @@ export default function FortalezaMap({
   bottomInset = 0,
   pickMode,
   onPick,
-  onLongPress,
+  onTap,
+  tapPoint,
   onSelectObstacle,
   focus,
   className,
@@ -132,7 +141,8 @@ export default function FortalezaMap({
   // valores "mais recentes" lidos dentro de handlers de longa vida
   const pickRef = useRef<{ active: boolean; cb?: (lat: number, lng: number) => void }>({ active: false });
   const onSelectRef = useRef(onSelectObstacle);
-  const onLongPressRef = useRef(onLongPress);
+  const onTapRef = useRef(onTap);
+  const tapMarkerRef = useRef<L.Marker | null>(null);
   const onUserPanRef = useRef(onUserPan);
   const followRef = useRef(!!follow);
   const navigatingRef = useRef(!!navigating);
@@ -144,11 +154,11 @@ export default function FortalezaMap({
 
   useEffect(() => {
     onSelectRef.current = onSelectObstacle;
-    onLongPressRef.current = onLongPress;
+    onTapRef.current = onTap;
     onUserPanRef.current = onUserPan;
     navigatingRef.current = !!navigating;
     insetRef.current = bottomInset;
-  }, [onSelectObstacle, onLongPress, onUserPan, navigating, bottomInset]);
+  }, [onSelectObstacle, onTap, onUserPan, navigating, bottomInset]);
 
   /** Centraliza o ciclista no espaço visível (acima do painel inferior; um pouco abaixo do centro ao navegar). */
   const centerOn = (ll: L.LatLng, animate: boolean, zoom?: number) => {
@@ -196,6 +206,7 @@ export default function FortalezaMap({
 
     map.on("click", (e: L.LeafletMouseEvent) => {
       if (pickRef.current.active && pickRef.current.cb) pickRef.current.cb(e.latlng.lat, e.latlng.lng);
+      else onTapRef.current?.(e.latlng.lat, e.latlng.lng);
     });
     // arrastar com o dedo/mouse = o usuário assumiu a câmera
     map.on("dragstart", () => {
@@ -213,52 +224,11 @@ export default function FortalezaMap({
       syncZoomClass();
     });
 
-    // segurar para escolher destino
-    let lpTimer: ReturnType<typeof setTimeout> | null = null;
-    let lpStart: { x: number; y: number } | null = null;
-    const cancelLongPress = () => {
-      if (lpTimer) clearTimeout(lpTimer);
-      lpTimer = null;
-      lpStart = null;
-    };
-    const onPointerDown = (e: PointerEvent) => {
-      if (pickRef.current.active || !onLongPressRef.current) return;
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      if ((e.target as HTMLElement).closest(".leaflet-control, .leaflet-marker-icon")) return;
-      lpStart = { x: e.clientX, y: e.clientY };
-      lpTimer = setTimeout(() => {
-        lpTimer = null;
-        const ll = map.mouseEventToLatLng(e);
-        navigator.vibrate?.(25);
-        onLongPressRef.current?.(ll.lat, ll.lng);
-      }, LONG_PRESS_MS);
-    };
-    const onPointerMove = (e: PointerEvent) => {
-      if (lpStart && Math.hypot(e.clientX - lpStart.x, e.clientY - lpStart.y) > 10) cancelLongPress();
-    };
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove);
-    el.addEventListener("pointerup", cancelLongPress);
-    el.addEventListener("pointercancel", cancelLongPress);
-    el.addEventListener("pointerleave", cancelLongPress);
-    // um 2º dedo (pinça) também cancela
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length > 1) cancelLongPress();
-    };
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-
     const ro = new ResizeObserver(() => map.invalidateSize());
     ro.observe(el);
     mapRef.current = map;
 
     return () => {
-      cancelLongPress();
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", cancelLongPress);
-      el.removeEventListener("pointercancel", cancelLongPress);
-      el.removeEventListener("pointerleave", cancelLongPress);
-      el.removeEventListener("touchstart", onTouchStart);
       const anim = animRef.current;
       if (anim?.raf) cancelAnimationFrame(anim.raf);
       animRef.current = null;
@@ -272,6 +242,7 @@ export default function FortalezaMap({
       userMarkerRef.current = null;
       userCircleRef.current = null;
       destMarkerRef.current = null;
+      tapMarkerRef.current = null;
       curPosRef.current = null;
     };
   }, []);
@@ -390,6 +361,27 @@ export default function FortalezaMap({
     }
     if (!g.hasLayer(guideRef.current)) guideRef.current.addTo(g);
   }, [userPos, guideTo]);
+
+  // pino do ponto tocado
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (tapPoint) {
+      if (!tapMarkerRef.current) {
+        tapMarkerRef.current = L.marker([tapPoint.lat, tapPoint.lng], {
+          icon: TAP_ICON,
+          zIndexOffset: 900,
+          interactive: false,
+          keyboard: false,
+        }).addTo(map);
+      } else {
+        tapMarkerRef.current.setLatLng([tapPoint.lat, tapPoint.lng]);
+      }
+    } else if (tapMarkerRef.current) {
+      tapMarkerRef.current.remove();
+      tapMarkerRef.current = null;
+    }
+  }, [tapPoint]);
 
   // rota de navegação + destino
   useEffect(() => {

@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Avatar from "@/components/profile/Avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { endSession } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -87,9 +88,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800/70 py-1 pl-1 pr-3 transition-colors hover:border-emerald-500/50"
                   data-testid="nav-user-menu"
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/20 text-xs font-bold text-emerald-400">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
+                  <Avatar name={user.name} src={user.avatar} className="h-7 w-7" textClassName="text-xs" />
                   <span className="hidden text-xs font-semibold text-slate-200 sm:inline">Nv. {user.level}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">

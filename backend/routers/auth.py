@@ -13,7 +13,7 @@ from lib.auth import (
 )
 from lib.db import db
 from lib.game import apply_badges, level_for_xp, user_from_doc
-from models.user import AccountDelete, LoginRequest, PasswordChange, ProfileUpdate, RegisterRequest, User
+from models.user import AccountDelete, LoginRequest, OnboardingUpdate, PasswordChange, ProfileUpdate, RegisterRequest, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -29,6 +29,8 @@ async def register(req: RegisterRequest, response: Response):
         "email": email,
         "bio": "",
         "bike_type": req.bike_type or "urbana",
+        "avatar": "",
+        "onboarded": False,
         "city": "Fortaleza",
         "xp": 0,
         "level": 1,
@@ -77,6 +79,8 @@ async def update_me(req: ProfileUpdate, user: dict = Depends(get_current_user)):
         updates["bio"] = req.bio.strip()[:280]
     if req.bike_type is not None:
         updates["bike_type"] = req.bike_type
+    if req.avatar is not None:
+        updates["avatar"] = req.avatar
     if updates:
         await db.users.update_one({"id": user["id"]}, {"$set": updates})
     fresh = await db.users.find_one({"id": user["id"]})
@@ -107,3 +111,12 @@ async def delete_account(req: AccountDelete, request: Request, response: Respons
     await db.users.delete_one({"id": user["id"]})
     response.delete_cookie("vdb_session", path="/")
     return {"ok": True}
+
+
+@router.post("/onboarding", response_model=User)
+async def set_onboarding(req: OnboardingUpdate, user: dict = Depends(get_current_user)):
+    """Marca a tela de boas-vindas como vista (`done=true`) ou manda mostrar de novo (`done=false`)."""
+    if user is None:
+        raise HTTPException(status_code=401, detail="Não autenticado")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"onboarded": req.done}})
+    return user_from_doc(await db.users.find_one({"id": user["id"]}))
