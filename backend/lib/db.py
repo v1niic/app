@@ -37,6 +37,15 @@ INDEXES: dict[str, list[IndexModel]] = {
         IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)], name="user_created"),
     ],
     "bikelanes": [IndexModel([("id", ASCENDING)], name="id", unique=True)],
+    # chat: mensagens somem sozinhas após 7 dias; encontros, 30 dias depois da data marcada
+    "chat_messages": [
+        IndexModel([("created_at", ASCENDING)], name="ttl_7d", expireAfterSeconds=60 * 60 * 24 * 7),
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+    ],
+    "meetups": [
+        IndexModel([("starts_at", ASCENDING)], name="ttl_30d_after_start", expireAfterSeconds=60 * 60 * 24 * 30),
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+    ],
 }
 
 

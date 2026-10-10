@@ -70,3 +70,9 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - `lib/proximity.ts` (puro, testável): níveis observar ≤500 m / atenção ≤250 m / perigo ≤100 m, só conta o que está à frente (cone ±80° do rumo), histerese de 40 m, avisa uma vez por nível.
 - `hooks/useHazardWatch.ts`: som (2 tons = atenção, 3 tons agudos = perigo), voz pt-BR e vibração; `levels` faz a placa crescer/pulsar no mapa; `primary` alimenta o `HazardAlertCard` (distância, ETA, ciclovia, gravidade, dispensar por 3 min) e a linha tracejada até o perigo.
 - UI: `MapHud` (status do radar/velocidade/som; substitui o antigo LiveGPSTracker), `HazardAlertCard`, `HazardIcon`.
+
+## Chat global e encontros
+- `/chat` (login obrigatório): aba **Conversa** (mensagens com atualização a cada 4 s por polling — a Vercel não tem WebSocket; 500 caracteres; máx. 5 msgs/20 s; apaga só a própria; some após 7 dias via índice TTL) e aba **Encontros** (qualquer ciclista marca pedalada com nome, local, data/hora e detalhes; os outros confirmam "Eu vou"; máx. 5 encontros ativos por pessoa; some 30 dias depois da data).
+- API: `GET/POST /api/chat/messages`, `DELETE /api/chat/messages/{id}`, `GET/POST /api/meetups`, `POST /api/meetups/{id}/join` (alterna), `DELETE /api/meetups/{id}`.
+- Excluir a conta apaga mensagens e encontros da pessoa e a remove das listas de presença.
+- Ainda não há moderação (denunciar/banir). Antes de abrir ao público, adicionar denúncia e um papel de moderador.

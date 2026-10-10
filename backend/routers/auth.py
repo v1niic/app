@@ -108,6 +108,11 @@ async def delete_account(req: AccountDelete, request: Request, response: Respons
         raise HTTPException(status_code=400, detail="Senha incorreta")
     await db.sessions.delete_many({"user_id": user["id"]})
     await db.rides.delete_many({"user_id": user["id"]})
+    await db.chat_messages.delete_many({"user_id": user["id"]})
+    await db.meetups.delete_many({"user_id": user["id"]})
+    await db.meetups.update_many(
+        {"going_ids": user["id"]}, {"$pull": {"going_ids": user["id"], "going_names": user["name"]}}
+    )
     await db.users.delete_one({"id": user["id"]})
     response.delete_cookie("vdb_session", path="/")
     return {"ok": True}

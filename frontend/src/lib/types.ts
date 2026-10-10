@@ -171,3 +171,25 @@ export function haversine(a: { lat: number; lng: number }, b: { lat: number; lng
 export function formatKm(km: number): string {
   return km >= 100 ? `${km.toFixed(0)} km` : `${km.toFixed(1)} km`;
 }
+
+export interface ChatMessage {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_level: number;
+  text: string;
+  created_at: string;
+}
+
+export interface Meetup {
+  id: string;
+  user_id: string;
+  user_name: string;
+  title: string;
+  place: string;
+  description: string;
+  starts_at: string;
+  going_count: number;
+  going: boolean;
+  going_names: string[];
+}

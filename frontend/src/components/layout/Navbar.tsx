@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Bike, FlagTriangleRight, Map as MapIcon, Trophy, User as UserIcon, Zap } from "lucide-react";
+import { Bike, FlagTriangleRight, Map as MapIcon, MessagesSquare, Trophy, User as UserIcon, Zap } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 const NAV_LINKS = [
   { to: "/map", label: "Mapa" },
   { to: "/missions", label: "Missões" },
+  { to: "/chat", label: "Chat" },
   { to: "/profile", label: "Perfil" },
 ];
 
@@ -125,7 +126,7 @@ export default function Navbar() {
 
       {showBottomBar && (
         <nav
-          className="fixed inset-x-0 bottom-0 z-[1200] grid h-[calc(3.5rem+env(safe-area-inset-bottom))] grid-cols-4 pb-[env(safe-area-inset-bottom)] items-stretch border-t border-slate-800 bg-[#090D16]/95 backdrop-blur md:hidden"
+          className="fixed inset-x-0 bottom-0 z-[1200] grid h-[calc(3.5rem+env(safe-area-inset-bottom))] grid-cols-5 pb-[env(safe-area-inset-bottom)] items-stretch border-t border-slate-800 bg-[#090D16]/95 backdrop-blur md:hidden"
           data-testid="mobile-bottom-nav"
         >
           <Link
@@ -141,6 +142,13 @@ export default function Navbar() {
             data-testid="bottom-nav-missions"
           >
             <Trophy className="h-5 w-5" /> Missões
+          </Link>
+          <Link
+            to="/chat"
+            className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-slate-400"
+            data-testid="bottom-nav-chat"
+          >
+            <MessagesSquare className="h-5 w-5" /> Chat
           </Link>
           <Link
             to="/map?report=1"

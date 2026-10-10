@@ -21,6 +21,7 @@ from lib.db import client, db, ensure_indexes
 from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.bikelanes import router as bikelanes_router
+from routers.chat import router as chat_router
 from routers.gamification import router as gamification_router
 from routers.obstacles import router as obstacles_router
 from routers.rides import router as rides_router
@@ -114,6 +115,7 @@ api_router.include_router(gamification_router)
 api_router.include_router(rides_router)
 api_router.include_router(routing_router)
 api_router.include_router(admin_router)
+api_router.include_router(chat_router)
 
 # Include the router in the main app
 app.include_router(api_router)
