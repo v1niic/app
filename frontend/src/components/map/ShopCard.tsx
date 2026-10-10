@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Clock, MapPin, Navigation, Phone, Star, X } from "lucide-react";
+import { Clock, MapPin, Navigation, Phone, Star, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,6 +83,17 @@ export default function ShopCard({ shop, onClose, onRouteTo }: Props) {
       setComment("");
       toast.success("Avaliação removida");
     },
+  });
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteShop = useMutation({
+    mutationFn: () => apiDelete(`/shops/${shop.id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["shops"] });
+      toast.success("Local removido do mapa");
+      onClose();
+    },
+    onError: (err) => toast.error(apiDetail(err, "Não foi possível remover o local")),
   });
 
   const others = (detail?.reviews ?? []).filter((r) => r.user_id !== user?.id);
@@ -189,6 +200,24 @@ export default function ShopCard({ shop, onClose, onRouteTo }: Props) {
               </li>
             ))}
           </ul>
+        )}
+
+        {detail?.can_delete && (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-2.5">
+            {!confirmDelete ? (
+              <Button variant="ghost" size="sm" className="text-red-300 hover:text-red-200" onClick={() => setConfirmDelete(true)} data-testid="shop-delete">
+                <Trash2 className="h-4 w-4" /> Remover este local do mapa
+              </Button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-red-200">Remover de vez, com as avaliações?</span>
+                <Button variant="destructive" size="sm" disabled={deleteShop.isPending} onClick={() => deleteShop.mutate()} data-testid="shop-delete-confirm">
+                  {deleteShop.isPending ? "Removendo…" : "Sim, remover"}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+              </div>
+            )}
+          </div>
         )}
 
         <p className="text-[10px] text-slate-600">

@@ -68,6 +68,7 @@ export interface ShopReview {
 export interface ShopDetail extends Shop {
   reviews: ShopReview[];
   my_review: ShopReview | null;
+  can_delete: boolean;
 }
 
 export interface BadgeDef {

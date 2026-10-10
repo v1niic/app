@@ -70,6 +70,7 @@ class ShopReview(BaseModel):
 class ShopDetail(Shop):
     reviews: list[ShopReview] = Field(default_factory=list)
     my_review: ShopReview | None = None
+    can_delete: bool = False  # quem sugeriu o local ou a conta dev pode removê-lo
 
 
 class ShopReject(BaseModel):

@@ -55,3 +55,12 @@ def test_review_flow_on_any_active_shop():
     assert [r["rating"] for r in d2["reviews"] if r["user_id"] == d2["my_review"]["user_id"]] == [3]
     assert c.put(f"/shops/{sid}/review", json={"rating": 9}).status_code == 422
     assert c.delete(f"/shops/{sid}/review").json()["my_review"] is None
+
+
+def test_only_author_or_moderator_can_delete():
+    author = _user()
+    other = _user()
+    sid = author.post("/shops", json={**SHOP, "name": f"Remover {uuid.uuid4().hex[:6]}"}).json()["id"]
+    assert other.delete(f"/shops/{sid}").status_code == 403
+    assert author.delete(f"/shops/{sid}").status_code == 200
+    assert author.delete(f"/shops/{sid}").status_code == 404
