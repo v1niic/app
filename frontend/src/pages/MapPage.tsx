@@ -29,7 +29,7 @@ import type { SavedTrip } from "@/hooks/useNavigation";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import type { NavPhase } from "@/hooks/useNavigation";
 import { useRide } from "@/hooks/useRide";
-import { apiDetail, apiGet, apiPost } from "@/lib/api";
+import { apiDelete, apiDetail, apiGet, apiPost } from "@/lib/api";
 import { OBSTACLE_TYPES, SEVERITY_LABELS } from "@/lib/types";
 import type { BikeLane, Obstacle, ObstacleType, ReportResult, Shop } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -260,6 +260,21 @@ export default function MapPage() {
       }
     },
     onError: (err) => toast.error(apiDetail(err, "Não foi possível confirmar agora")),
+  });
+
+  // só a conta dev: tira do mapa um alerta que não existe mais (pede confirmação)
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  useEffect(() => setConfirmRemove(false), [selected?.id]);
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`/obstacles/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["obstacles"] });
+      void queryClient.invalidateQueries({ queryKey: ["stats"] });
+      void queryClient.invalidateQueries({ queryKey: ["moderation"] });
+      setSelected(null);
+      toast.success("Alerta removido do mapa");
+    },
+    onError: (err) => toast.error(apiDetail(err, "Não foi possível remover o alerta")),
   });
 
   const resolveMutation = useMutation({
@@ -568,6 +583,23 @@ export default function MapPage() {
                   >
                     Marcar resolvido
                   </Button>
+                )}
+              </div>
+            )}
+            {user?.is_moderator && (
+              <div className="mt-3 border-t border-slate-800 pt-3" data-testid="obstacle-remove-box">
+                {!confirmRemove ? (
+                  <Button size="sm" variant="ghost" className="text-red-300 hover:text-red-200" onClick={() => setConfirmRemove(true)} data-testid="obstacle-remove">
+                    Remover alerta do mapa
+                  </Button>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-red-200">Remover de vez? Não dá para desfazer.</span>
+                    <Button size="sm" variant="destructive" disabled={removeMutation.isPending} onClick={() => removeMutation.mutate(selected.id)} data-testid="obstacle-remove-confirm">
+                      {removeMutation.isPending ? "Removendo…" : "Sim, remover"}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmRemove(false)}>Cancelar</Button>
+                  </div>
                 )}
               </div>
             )}

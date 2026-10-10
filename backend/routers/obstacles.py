@@ -106,10 +106,15 @@ async def create_obstacle(req: ObstacleCreate, user: dict = Depends(require_user
 
 @router.delete("/{id}")
 async def withdraw_obstacle(id: str, user: dict = Depends(require_user)):
-    """O autor retira um alerta que ainda não foi aprovado (em análise ou recusado)."""
-    res = await db.obstacles.delete_one(
-        {"id": id, "user_id": user["id"], "status": {"$in": ["pendente", "recusado"]}}
-    )
+    """O autor retira um alerta que ainda não foi aprovado (em análise ou recusado).
+
+    A conta dev (moderação) remove qualquer alerta, inclusive os já publicados no mapa (ex.: o buraco foi consertado).
+    O XP já concedido a quem reportou não é desfeito.
+    """
+    query: dict = {"id": id}
+    if not is_moderator(user):
+        query.update({"user_id": user["id"], "status": {"$in": ["pendente", "recusado"]}})
+    res = await db.obstacles.delete_one(query)
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Alerta não encontrado ou já publicado")
     return {"ok": True}
