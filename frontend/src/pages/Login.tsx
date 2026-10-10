@@ -94,6 +94,11 @@ export default function Login() {
                 placeholder="••••••••"
               />
             </div>
+            <div className="text-right">
+              <Link to="/esqueci-senha" className="text-xs font-semibold text-emerald-400 hover:underline" data-testid="login-forgot">
+                Esqueci minha senha
+              </Link>
+            </div>
             <Button
               type="submit"
               className="w-full"

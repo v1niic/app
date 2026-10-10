@@ -29,6 +29,12 @@ INDEXES: dict[str, list[IndexModel]] = {
         IndexModel([("user_id", ASCENDING)], name="user_id"),
         IndexModel([("created_at", ASCENDING)], name="ttl_30d", expireAfterSeconds=60 * 60 * 24 * 30),
     ],
+    # links de recuperação de senha: guardamos só o hash do token; somem sozinhos ao expirar
+    "password_resets": [
+        IndexModel([("token_hash", ASCENDING)], name="token_hash", unique=True),
+        IndexModel([("user_id", ASCENDING)], name="user_id"),
+        IndexModel([("expires_at", ASCENDING)], name="ttl_expires", expireAfterSeconds=0),
+    ],
     "rides": [IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)], name="user_created")],
     "obstacles": [
         IndexModel([("id", ASCENDING)], name="id", unique=True),
