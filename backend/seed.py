@@ -105,6 +105,17 @@ DEMO_USERS = [
         "reports_count": 7,
         "confirms_count": 5,
     },
+     {
+        "email": "marcosviniciuspessoa5@gmail.com",
+        "name": "Vinicíus",
+        "bio": "DEV.",
+        "bike_type": "mtb",
+        "xp": 980,
+        "level": 2,
+        "total_km": 76.5,
+        "reports_count": 7,
+        "confirms_count": 5,
+    },
 ]
 
 # Alertas de exemplo anexados aos usuários demo — inseridos apenas com a coleção vazia.
