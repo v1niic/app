@@ -105,10 +105,10 @@ DEMO_USERS = [
         "reports_count": 7,
         "confirms_count": 5,
     },
-    {
-        "email": "marcosviniciuspessoa5@gmail.com",
-        "name": "Vinícius",
-        "bio": "Dev",
+     {
+        "email": "marcosviniciuspessoa6@gmail.com",
+        "name": "Vinicíus",
+        "bio": "DEV.",
         "bike_type": "mtb",
         "xp": 980,
         "level": 2,
