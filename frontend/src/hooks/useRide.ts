@@ -233,6 +233,21 @@ export function useRide() {
 
   const startDemo = useCallback((lane: BikeLane) => startRoute(lane.coordinates), [startRoute]);
 
+  // voltou do segundo plano (trocou de app e retornou): o navegador pode ter pausado o GPS — pede a posição atual na hora
+  useEffect(() => {
+    if (!riding || demo) return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || !("geolocation" in navigator)) return;
+      navigator.geolocation.getCurrentPosition(
+        (p) => onPos({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy, heading: p.coords.heading }),
+        () => undefined,
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
+      );
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [riding, demo, onPos]);
+
   useEffect(
     () => () => {
       // desmontagem: apenas limpa rastreio (registro de km só em stop explícito)

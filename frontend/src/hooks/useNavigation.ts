@@ -24,6 +24,38 @@ const FALLBACK_ORIGIN = { lat: -3.7215, lng: -38.516 };
 
 type LatLngTuple = [number, number];
 
+const TRIP_KEY = "vdb_trip";
+const TRIP_MAX_AGE_MS = 3 * 60 * 60 * 1000; // viagem guardada vale por 3 h
+
+export interface SavedTrip {
+  destination: { lat: number; lng: number; name: string };
+  savedAt: number;
+}
+
+/** Viagem que estava em andamento quando o app foi fechado/recarregado pelo sistema (ou null). */
+export function readSavedTrip(): SavedTrip | null {
+  try {
+    const raw = localStorage.getItem(TRIP_KEY);
+    if (!raw) return null;
+    const t = JSON.parse(raw) as SavedTrip;
+    if (!t?.destination || Date.now() - t.savedAt > TRIP_MAX_AGE_MS) {
+      localStorage.removeItem(TRIP_KEY);
+      return null;
+    }
+    return t;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSavedTrip(): void {
+  try {
+    localStorage.removeItem(TRIP_KEY);
+  } catch {
+    // armazenamento bloqueado: sem retomada, o resto funciona
+  }
+}
+
 function cumulative(coords: LatLngTuple[]): number[] {
   const cum: number[] = [0];
   for (let i = 1; i < coords.length; i++) {
@@ -257,6 +289,19 @@ export function useNavigation(ride: RideState, obstacles: Obstacle[]) {
     () => (coords ? obstaclesNearRoute(coords, cum, obstacles, ROUTE_ALERT_RADIUS_M) : []),
     [coords, cum, obstacles],
   );
+
+  // guarda o destino enquanto guia: se o celular matar o app em segundo plano, dá para retomar ao reabrir
+  useEffect(() => {
+    if (phase === "navigating" && destination) {
+      try {
+        localStorage.setItem(TRIP_KEY, JSON.stringify({ destination, savedAt: Date.now() } satisfies SavedTrip));
+      } catch {
+        // ignora
+      }
+    } else if (phase === "idle" || phase === "arrived") {
+      clearSavedTrip();
+    }
+  }, [phase, destination]);
 
   // chegada
   useEffect(() => {

@@ -73,3 +73,9 @@ Depois faça o Redeploy. Sem essas variáveis o pedido "funciona" na tela, mas n
 - **Configurações** (engrenagem no Perfil, ou menu do avatar → Configurações): nome de usuário, e-mail (pede a senha), senha, tutorial, desativar (temporário: entrar de novo reativa) e excluir a conta.
 - **Ciclistas** (`/ciclistas`): buscar por nome, seguir/deixar de seguir, ver seguidores e seguindo; perfil público em `/ciclistas/<id>` (nunca mostra e-mail). Contas demo e desativadas não aparecem.
 - Não há variável nova: nada a configurar na Vercel.
+
+## 10. Viagem em bolha e segundo plano
+- Durante a navegação, a caixa de baixo virou uma **bolha flutuante**: tempo e km que faltam, hora de chegada, alertas no caminho e **Encerrar** (pede um segundo toque para confirmar). Toque na bolha para ver as próximas curvas; o botão de minimizar a transforma numa bolinha redonda com os minutos.
+- **A tela não apaga** enquanto você pedala (Wake Lock). Funciona no Chrome/Android e no Safari/iOS 16.4+ (no app instalado).
+- **Trocar de app:** o GPS de um site/PWA pode pausar quando o app vai para segundo plano (mais comum no iPhone). Ao voltar, o app pede a posição na hora e continua. Se o sistema fechar o app, ao reabrir o mapa aparece "Retomar a viagem?" (vale por 3 horas).
+- **Limite da web:** com a tela bloqueada ou outro app aberto, o site não consegue tocar sons nem vibrar para avisar de perigos. Para isso funcionar de verdade é preciso a versão nativa (Capacitor, ver seção 4) com um plugin de localização em segundo plano. Sem isso, mantenha o app aberto na tela durante o pedal.

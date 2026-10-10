@@ -14,7 +14,6 @@ import {
   Navigation,
   Route as RouteIcon,
   Search,
-  Square,
   TriangleAlert,
   X,
   Zap,
@@ -30,7 +29,7 @@ import type { BikeLane, RouteStep } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Horário previsto de chegada (HH:mm) a partir de agora + `seconds`. */
-function etaClock(seconds: number): string {
+export function etaClock(seconds: number): string {
   return new Date(Date.now() + seconds * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
@@ -93,7 +92,7 @@ interface PanelProps {
   sheetIndex: number;
 }
 
-/** Conteúdo do painel inferior conforme a fase: busca de destino → prévia da rota → guiando → chegada. */
+/** Conteúdo do painel inferior: busca de destino → prévia da rota → chegada. Durante a viagem quem aparece é a bolha (NavBubble). */
 export default function NavigationPanel({ nav, ride, lanes, sheetIndex }: PanelProps) {
   const [query, setQuery] = useState("");
 
@@ -114,46 +113,6 @@ export default function NavigationPanel({ nav, ride, lanes, sheetIndex }: PanelP
         <Button className="w-full" onClick={nav.finish} data-testid="nav-finish">
           Concluir e salvar pedalada
         </Button>
-      </div>
-    );
-  }
-
-  // ---- guiando ----
-  if (nav.phase === "navigating") {
-    return (
-      <div className="space-y-3" data-testid="nav-active">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="font-heading text-2xl font-bold text-white" data-testid="nav-eta">
-              {formatDuration(nav.remainingS)}
-            </p>
-            <p className="text-xs text-slate-400">
-              {formatDistance(nav.remainingM)} · chega às {etaClock(nav.remainingS)}
-            </p>
-          </div>
-          <Button variant="destructive" size="sm" onClick={nav.finish} data-testid="nav-stop">
-            <Square className="h-3.5 w-3.5" /> Encerrar
-          </Button>
-        </div>
-        {nav.routeObstacleIds.length > 0 && (
-          <p className="flex items-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-xs text-orange-200">
-            <TriangleAlert className="h-4 w-4 shrink-0" />
-            {nav.routeObstacleIds.length} alerta(s) no seu caminho
-          </p>
-        )}
-        {sheetIndex > 0 && nav.route && (
-          <ol className="space-y-1 pt-1" data-testid="nav-steps">
-            {nav.route.steps.map((s, i) => (
-              <li key={`${i}-${s.lat}-${s.lng}`} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm text-slate-300">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-800 text-slate-200">
-                  <ManeuverIcon step={s} className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1 truncate">{s.instruction}</span>
-                {s.distance_m > 0 && <span className="text-xs text-slate-500">{formatDistance(s.distance_m)}</span>}
-              </li>
-            ))}
-          </ol>
-        )}
       </div>
     );
   }
