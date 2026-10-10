@@ -82,3 +82,8 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - Mapa público só lista `ativo`/`resolvido`; `pendente`/`recusado` público → 403. Autor vê os seus (`mine`) e pode retirar: `DELETE /obstacles/{id}`.
 - `/api/moderation` (só moderador): `GET /summary`, `GET /queue?status=pendente|recusado` (dica de duplicata em 60 m), `POST /{id}/approve` (edição opcional; +XP ao autor uma única vez, atômico), `POST /{id}/reject` (motivo ≤200).
 - Frontend: `/alertas` (AlertsInboxPage + MiniMap), badge na Navbar, `User.is_moderator`.
+
+## Recuperação de senha
+- `POST /auth/forgot {email}` (resposta idêntica exista a conta ou não; máx. 3 pedidos/h por conta) → grava só o hash SHA-256 do token em `password_resets` (TTL 1 h) e envia o link `APP_URL/redefinir-senha?token=…` via `lib/mailer.py` (SMTP ou Resend).
+- `POST /auth/reset {token,new_password}` → uso único e atômico; troca a senha, encerra todas as sessões.
+- Frontend: `/esqueci-senha`, `/redefinir-senha`, link no Login. O host do link vem de `APP_URL`/`CORS_ORIGINS`, nunca do pedido.

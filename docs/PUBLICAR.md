@@ -60,3 +60,11 @@ Alertas de usuários comuns entram como **Em análise** e só aparecem no mapa d
 3. Abra `/alertas` (link "Caixa de alertas" no menu): aprove, ajuste ou recuse (com motivo).
 Só liste e-mails de contas que já existem. Antes de lançar: apague `SEED_TOKEN`/`HEALTH_DEBUG` e as contas demo.
 Testes de moderação: defina `MODERATOR_TEST_EMAIL` e `MODERATOR_TEST_PASSWORD` para rodar os casos de aprovação.
+
+## 8. Recuperar senha por e-mail
+Na tela de login, "Esqueci minha senha" envia um link (vale 1 hora, uso único) para o e-mail da conta. Ao trocar a senha, todos os aparelhos saem da conta.
+Para o e-mail funcionar, no projeto da **API** na Vercel (Production) crie:
+- `APP_URL` = endereço do SITE, ex.: `https://seu-site.vercel.app` (sem `/` no final)
+- **Opção A, Gmail:** ative a verificação em 2 etapas na conta Google, crie uma "senha de app" (myaccount.google.com/apppasswords) e defina `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=seuemail@gmail.com`, `SMTP_PASSWORD=<senha de app de 16 letras>`, `MAIL_FROM=VaiDeBike <seuemail@gmail.com>`
+- **Opção B, Resend:** `RESEND_API_KEY` e `MAIL_FROM` (para enviar a qualquer pessoa, é preciso verificar um domínio seu no Resend)
+Depois faça o Redeploy. Sem essas variáveis o pedido "funciona" na tela, mas nenhum e-mail sai.

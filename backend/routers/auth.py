@@ -1,5 +1,9 @@
+import hashlib
+import logging
+import os
+import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
@@ -13,9 +17,30 @@ from lib.auth import (
 )
 from lib.db import db
 from lib.game import apply_badges, level_for_xp, user_from_doc
-from models.user import AccountDelete, LoginRequest, OnboardingUpdate, PasswordChange, ProfileUpdate, RegisterRequest, User
+from lib.mailer import mail_enabled, reset_email, send_mail
+from models.user import AccountDelete, ForgotPassword, ResetPassword, LoginRequest, OnboardingUpdate, PasswordChange, ProfileUpdate, RegisterRequest, User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
+
+RESET_TTL = timedelta(hours=1)
+RESET_MAX_PER_HOUR = 3
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _app_url() -> str:
+    """Endereço do SITE (nunca vem do pedido: um Host/Origin forjado poderia mandar o link para um site falso)."""
+    url = os.environ.get("APP_URL", "").strip().rstrip("/")
+    if url:
+        return url
+    for origin in os.environ.get("CORS_ORIGINS", "").split(","):
+        origin = origin.strip().rstrip("/")
+        if origin.startswith("https://"):
+            return origin
+    return ""
 
 
 @router.post("/register", response_model=User)
@@ -131,3 +156,52 @@ async def set_onboarding(req: OnboardingUpdate, user: dict = Depends(get_current
         raise HTTPException(status_code=401, detail="Não autenticado")
     await db.users.update_one({"id": user["id"]}, {"$set": {"onboarded": req.done}})
     return user_from_doc(await db.users.find_one({"id": user["id"]}))
+
+
+@router.post("/forgot")
+async def forgot_password(req: ForgotPassword):
+    """Manda um link de redefinição por e-mail. A resposta é sempre a mesma, exista a conta ou não (não revela quem é cadastrado)."""
+    result = {"ok": True, "email_enabled": mail_enabled()}
+    user = await db.users.find_one({"email": req.email.lower()})
+    if not user:
+        return result
+    now = datetime.now(timezone.utc)
+    recent = await db.password_resets.count_documents({"user_id": user["id"], "created_at": {"$gte": now - timedelta(hours=1)}})
+    if recent >= RESET_MAX_PER_HOUR:
+        return result  # pedidos demais: ignora em silêncio
+    base = _app_url()
+    if not base or not mail_enabled():
+        logger.warning("Recuperação de senha pedida, mas APP_URL ou o e-mail não estão configurados")
+        return result
+    token = secrets.token_urlsafe(32)
+    await db.password_resets.insert_one(
+        {
+            "token_hash": _hash_token(token),
+            "user_id": user["id"],
+            "created_at": now,
+            "expires_at": now + RESET_TTL,
+            "used": False,
+        }
+    )
+    subject, text, html = reset_email(user["name"], f"{base}/redefinir-senha?token={token}")
+    await send_mail(user["email"], subject, text, html)
+    return result
+
+
+@router.post("/reset")
+async def reset_password(req: ResetPassword):
+    """Troca a senha com o link recebido por e-mail (uso único, 1 hora). Encerra todas as sessões abertas."""
+    now = datetime.now(timezone.utc)
+    rec = await db.password_resets.find_one_and_update(
+        {"token_hash": _hash_token(req.token), "used": False, "expires_at": {"$gt": now}},
+        {"$set": {"used": True}},
+    )
+    if not rec:
+        raise HTTPException(status_code=400, detail="Link inválido ou expirado. Peça um novo na tela de login.")
+    await db.users.update_one(
+        {"id": rec["user_id"]},
+        {"$set": {"password_hash": hash_password(req.new_password), "password_changed": True}},
+    )
+    await db.sessions.delete_many({"user_id": rec["user_id"]})
+    await db.password_resets.delete_many({"user_id": rec["user_id"]})
+    return {"ok": True}
