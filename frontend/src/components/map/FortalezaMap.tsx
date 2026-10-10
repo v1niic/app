@@ -5,7 +5,8 @@ import "leaflet/dist/leaflet.css";
 import { hazardColor, hazardSvg } from "@/lib/hazards";
 import { WARN_M } from "@/lib/proximity";
 import type { HazardLevel } from "@/lib/proximity";
-import type { BikeLane, Obstacle } from "@/lib/types";
+import { SHOP_META, shopSvg } from "@/lib/shops";
+import type { BikeLane, Obstacle, Shop } from "@/lib/types";
 
 export interface FocusRequest {
   lat: number;
@@ -45,6 +46,9 @@ interface FortalezaMapProps {
   /** ponto tocado, marcado com um pino até o usuário decidir o que fazer */
   tapPoint?: { lat: number; lng: number } | null;
   onSelectObstacle?: (o: Obstacle) => void;
+  /** borracharias, oficinas e pontos de autorreparo (ícones redondos azuis/roxos/verdes) */
+  shops?: Shop[];
+  onSelectShop?: (s: Shop) => void;
   focus?: FocusRequest | null;
   className?: string;
 }
@@ -69,6 +73,17 @@ function obstacleIcon(o: Obstacle, onRoute: boolean): L.DivIcon {
     html: `<span class="hz hz--${o.severity}${route}" style="--hz:${hazardColor(o.type)}" data-testid="obstacle-marker" data-obstacle-type="${o.type}" data-obstacle-id="${o.id}"><span class="hz-post"></span><span class="hz-ring"></span><span class="hz-sign"><span class="hz-glyph">${hazardSvg(o.type, 16)}</span></span></span>`,
     iconSize: [44, 56],
     iconAnchor: [22, 54],
+  });
+}
+
+/** Bolha redonda com o desenho do tipo de local; a cor diferencia de longe e o "bico" aponta o ponto exato. */
+function shopIcon(shop: Shop): L.DivIcon {
+  const m = SHOP_META[shop.kind];
+  return L.divIcon({
+    className: "vdb-marker-wrap",
+    html: `<span data-testid="shop-marker" data-shop-id="${shop.id}" style="display:flex;flex-direction:column;align-items:center;filter:drop-shadow(0 3px 6px rgba(0,0,0,.55))"><span style="display:flex;height:34px;width:34px;align-items:center;justify-content:center;border-radius:9999px;border:2.5px solid #fff;background:${m.color}">${shopSvg(shop.kind, 18)}</span><span style="margin-top:-3px;height:0;width:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid #fff"></span></span>`,
+    iconSize: [34, 46],
+    iconAnchor: [17, 44],
   });
 }
 
@@ -117,6 +132,8 @@ export default function FortalezaMap({
   onTap,
   tapPoint,
   onSelectObstacle,
+  shops,
+  onSelectShop,
   focus,
   className,
 }: FortalezaMapProps) {
@@ -125,6 +142,8 @@ export default function FortalezaMap({
   const lanesRef = useRef<L.LayerGroup | null>(null);
   const routeGroupRef = useRef<L.LayerGroup | null>(null);
   const obstaclesRef = useRef<L.LayerGroup | null>(null);
+  const shopsLayerRef = useRef<L.LayerGroup | null>(null);
+  const onSelectShopRef = useRef(onSelectShop);
   const userGroupRef = useRef<L.LayerGroup | null>(null);
   const routeCasingRef = useRef<L.Polyline | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
@@ -154,11 +173,12 @@ export default function FortalezaMap({
 
   useEffect(() => {
     onSelectRef.current = onSelectObstacle;
+    onSelectShopRef.current = onSelectShop;
     onTapRef.current = onTap;
     onUserPanRef.current = onUserPan;
     navigatingRef.current = !!navigating;
     insetRef.current = bottomInset;
-  }, [onSelectObstacle, onTap, onUserPan, navigating, bottomInset]);
+  }, [onSelectObstacle, onSelectShop, onTap, onUserPan, navigating, bottomInset]);
 
   /** Centraliza o ciclista no espaço visível (acima do painel inferior; um pouco abaixo do centro ao navegar). */
   const centerOn = (ll: L.LatLng, animate: boolean, zoom?: number) => {
@@ -194,6 +214,7 @@ export default function FortalezaMap({
 
     lanesRef.current = L.layerGroup().addTo(map);
     routeGroupRef.current = L.layerGroup().addTo(map);
+    shopsLayerRef.current = L.layerGroup().addTo(map); // abaixo dos perigos: o alerta sempre fica por cima
     obstaclesRef.current = L.layerGroup().addTo(map);
     userGroupRef.current = L.layerGroup().addTo(map);
 
@@ -321,6 +342,18 @@ export default function FortalezaMap({
     }
     if (obstacles.length > 0) populatedRef.current = true;
   }, [obstacles, routeObstacleIds]);
+
+  // borracharias e oficinas: recria só quando a lista muda (são poucas e quase não mudam)
+  useEffect(() => {
+    const g = shopsLayerRef.current;
+    if (!g) return;
+    g.clearLayers();
+    for (const shop of shops ?? []) {
+      L.marker([shop.lat, shop.lng], { icon: shopIcon(shop), zIndexOffset: -200, keyboard: false })
+        .on("click", () => onSelectShopRef.current?.(shop))
+        .addTo(g);
+    }
+  }, [shops]);
 
   // nível de aproximação: a placa cresce e pulsa conforme o ciclista chega perto
   useEffect(() => {

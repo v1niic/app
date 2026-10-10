@@ -5,7 +5,7 @@ import confetti from "canvas-confetti";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { FlagTriangleRight, Layers, LocateFixed, Navigation, Volume2, VolumeX, X } from "lucide-react";
+import { FlagTriangleRight, Layers, LocateFixed, Navigation, Volume2, VolumeX, Wrench, X } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import BottomSheet from "@/components/map/BottomSheet";
@@ -17,6 +17,8 @@ import MapHud from "@/components/map/MapHud";
 import NavBubble from "@/components/map/NavBubble";
 import NavigationPanel, { ManeuverBanner } from "@/components/map/NavigationPanel";
 import ReportObstacleModal from "@/components/map/ReportObstacleModal";
+import ShopCard from "@/components/map/ShopCard";
+import SuggestShopModal from "@/components/map/SuggestShopModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +31,7 @@ import type { NavPhase } from "@/hooks/useNavigation";
 import { useRide } from "@/hooks/useRide";
 import { apiDetail, apiGet, apiPost } from "@/lib/api";
 import { OBSTACLE_TYPES, SEVERITY_LABELS } from "@/lib/types";
-import type { BikeLane, Obstacle, ObstacleType, ReportResult } from "@/lib/types";
+import type { BikeLane, Obstacle, ObstacleType, ReportResult, Shop } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ALL_TYPES = Object.keys(OBSTACLE_TYPES) as ObstacleType[];
@@ -58,6 +60,16 @@ export default function MapPage() {
     queryFn: () => apiGet<Obstacle[]>("/obstacles"),
     refetchInterval: 6000, // perigos novos aparecem no mapa quase em tempo real
   });
+
+  const { data: shops = [] } = useQuery({
+    queryKey: ["shops"],
+    queryFn: () => apiGet<Shop[]>("/shops"),
+    refetchInterval: 120000,
+  });
+  const [showShops, setShowShops] = useState(true);
+  const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestCoords, setSuggestCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<Set<ObstacleType>>(new Set(ALL_TYPES));
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -150,8 +162,17 @@ export default function MapPage() {
     setModalOpen(true);
   }, []);
 
+  const onSelectShop = useCallback((shop: Shop) => {
+    setTapPoint(null);
+    setSelected(null);
+    setSelectedShop(shop);
+    setFollow(false);
+    setFocus({ lat: shop.lat, lng: shop.lng, zoom: 17 });
+  }, []);
+
   const onSelectObstacle = useCallback((o: Obstacle) => {
     setTapPoint(null);
+    setSelectedShop(null);
     setSelected(o);
     setFollow(false);
     setFocus({ lat: o.lat, lng: o.lng, zoom: 16 });
@@ -165,6 +186,7 @@ export default function MapPage() {
     (lat: number, lng: number) => {
       if (phase === "navigating" || phase === "arrived") return; // guiando: toque solto não deve atrapalhar
       setSelected(null);
+      setSelectedShop(null);
       setFollow(false);
       setTapPoint({ lat, lng });
     },
@@ -175,6 +197,18 @@ export default function MapPage() {
     if (!tapPoint) return;
     chooseDestination({ ...tapPoint, name: "Ponto escolhido no mapa" });
     setTapPoint(null);
+  };
+
+  const suggestAtTapPoint = () => {
+    if (!tapPoint) return;
+    setSuggestCoords(tapPoint);
+    setSuggestOpen(true);
+    setTapPoint(null);
+  };
+
+  const routeToShop = (shop: Shop) => {
+    chooseDestination({ lat: shop.lat, lng: shop.lng, name: shop.name });
+    setSelectedShop(null);
   };
 
   const reportAtTapPoint = () => {
@@ -265,6 +299,8 @@ export default function MapPage() {
         onTap={onTap}
         tapPoint={tapPoint}
         onSelectObstacle={onSelectObstacle}
+        shops={showShops ? shops : undefined}
+        onSelectShop={onSelectShop}
         focus={focus}
         className="absolute inset-0 h-full w-full"
       />
@@ -383,6 +419,21 @@ export default function MapPage() {
               );
             })}
           </div>
+          <button
+            type="button"
+            data-testid="filter-shops"
+            onClick={() => {
+              setShowShops((v) => !v);
+              setSelectedShop(null);
+            }}
+            className={cn(
+              "mt-1 flex w-full items-center gap-2 rounded-md border-t border-slate-800 px-2 py-2 text-left text-xs font-medium transition-colors",
+              showShops ? "bg-slate-800 text-white" : "text-slate-500 hover:bg-slate-800/50",
+            )}
+          >
+            <Wrench className={cn("h-4 w-4 text-sky-400", !showShops && "opacity-40")} />
+            Borracharias e oficinas
+          </button>
           <div className="mt-2 border-t border-slate-800 pt-2 text-[10px] leading-relaxed text-slate-500">
             <span className="mr-1 inline-block h-0.5 w-5 bg-emerald-500 align-middle" /> ciclovia
             <span className="mx-1 ml-2 inline-block h-0.5 w-5 border-b-2 border-dashed border-sky-400 align-middle" /> ciclofaixa
@@ -421,7 +472,7 @@ export default function MapPage() {
       )}
 
       {/* Cartão do ponto tocado: ir até lá ou reportar um perigo ali */}
-      {tapPoint && !selected && (
+      {tapPoint && !selected && !selectedShop && (
         <Card
           className="absolute left-3 right-3 z-[1170] border-slate-700/80 bg-slate-900/95 backdrop-blur-md bottom-[calc(var(--inset)+12px)] md:bottom-6 md:left-[404px] md:right-auto md:w-[340px]"
           data-testid="map-tap-card"
@@ -436,6 +487,14 @@ export default function MapPage() {
             </CardAction>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-2">
+            <Button
+              variant="ghost"
+              className="col-span-2 h-8 justify-start text-xs text-sky-300 hover:text-sky-200"
+              onClick={suggestAtTapPoint}
+              data-testid="map-tap-shop"
+            >
+              <Wrench className="h-4 w-4" /> Há uma borracharia/oficina aqui? Adicionar
+            </Button>
             <Button onClick={goToTapPoint} data-testid="map-tap-go">
               <Navigation className="h-4 w-4" /> Ir até aqui
             </Button>
@@ -444,6 +503,11 @@ export default function MapPage() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Bolha da borracharia/oficina: telefone, horário, nota e avaliações */}
+      {selectedShop && !selected && (
+        <ShopCard key={selectedShop.id} shop={selectedShop} onClose={() => setSelectedShop(null)} onRouteTo={routeToShop} />
       )}
 
       {/* Painel do alerta selecionado (deslize para baixo para fechar) */}
@@ -511,6 +575,7 @@ export default function MapPage() {
         </Card>
       )}
 
+      <SuggestShopModal open={suggestOpen} onOpenChange={setSuggestOpen} coords={suggestCoords} />
       <ReportObstacleModal open={modalOpen} onOpenChange={setModalOpen} coords={reportCoords} />
     </div>
   );

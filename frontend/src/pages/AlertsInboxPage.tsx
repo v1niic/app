@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, Inbox, MapPin, Pencil, ShieldAlert, X } from "lucide-react";
+import { Check, Inbox, MapPin, Pencil, Phone, ShieldAlert, Wrench, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -16,14 +16,75 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiDetail, apiGet, apiPost } from "@/lib/api";
 import { SEVERITY_COLORS } from "@/lib/hazards";
 import { OBSTACLE_TYPES, SEVERITY_LABELS } from "@/lib/types";
-import type { ModerationItem, ModerationSummary, Obstacle, ObstacleType, Severity } from "@/lib/types";
+import { SHOP_META } from "@/lib/shops";
+import type { ModerationItem, ModerationSummary, Obstacle, ObstacleType, Severity, Shop } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TYPES = Object.keys(OBSTACLE_TYPES) as ObstacleType[];
 const SEVERITIES: Severity[] = ["baixa", "media", "alta"];
 const QUICK_REASONS = ["Alerta duplicado", "Local incorreto", "Não é um perigo para ciclistas", "Informação insuficiente"];
 
-type Tab = "pendente" | "recusado";
+type Tab = "pendente" | "recusado" | "locais";
+
+/** Locais (borracharias/oficinas) sugeridos por ciclistas, esperando a decisão da equipe. */
+function ShopQueue({ shops }: { shops: Shop[] }) {
+  const queryClient = useQueryClient();
+  const done = () => {
+    void queryClient.invalidateQueries({ queryKey: ["shops"] });
+  };
+  const approve = useMutation({
+    mutationFn: (id: string) => apiPost<Shop>(`/shops/${id}/approve`),
+    onSuccess: (s) => {
+      toast.success(`${s.name} publicado no mapa`);
+      done();
+    },
+    onError: (err) => toast.error(apiDetail(err, "Não foi possível aprovar")),
+  });
+  const reject = useMutation({
+    mutationFn: (id: string) => apiPost(`/shops/${id}/reject`, { reason: "" }),
+    onSuccess: () => {
+      toast.success("Sugestão descartada");
+      done();
+    },
+    onError: (err) => toast.error(apiDetail(err, "Não foi possível descartar")),
+  });
+  if (shops.length === 0) {
+    return (
+      <div className="mt-8 rounded-2xl border border-dashed border-slate-700 p-10 text-center" data-testid="inbox-empty">
+        <Wrench className="mx-auto h-8 w-8 text-slate-500" />
+        <p className="mt-3 text-sm text-slate-400">Nenhum local esperando análise.</p>
+      </div>
+    );
+  }
+  return (
+    <ul className="mt-5 space-y-3" data-testid="shop-queue">
+      {shops.map((s) => (
+        <li key={s.id} className="rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: SHOP_META[s.kind].color }}>{SHOP_META[s.kind].label}</p>
+          <p className="font-heading text-base font-bold text-white">{s.name}</p>
+          <ul className="mt-1 space-y-0.5 text-xs text-slate-400">
+            {s.address && <li>{s.address}</li>}
+            {s.hours && <li>{s.hours}</li>}
+            {s.phone && <li className="flex items-center gap-1"><Phone className="h-3 w-3" /> {s.phone}</li>}
+            {s.description && <li>{s.description}</li>}
+            <li>Sugerido por <b className="text-slate-200">{s.added_by_name || "ciclista"}</b></li>
+          </ul>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => approve.mutate(s.id)} disabled={approve.isPending} data-testid={`shop-approve-${s.id}`}>
+              <Check className="h-4 w-4" /> Aprovar
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => reject.mutate(s.id)} disabled={reject.isPending}>
+              <X className="h-4 w-4" /> Descartar
+            </Button>
+            <Link to={`/map?lat=${s.lat}&lng=${s.lng}`} className="inline-flex h-8 items-center gap-1 px-2 text-xs font-semibold text-emerald-400 hover:underline">
+              <MapPin className="h-3.5 w-3.5" /> Ver no mapa
+            </Link>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function AlertCard({ item, active }: { item: ModerationItem; active: Obstacle[] }) {
   const queryClient = useQueryClient();
@@ -217,9 +278,15 @@ export default function AlertsInboxPage() {
   });
   const { data: items = [], isLoading: loadingItems } = useQuery({
     queryKey: ["moderation", "queue", tab],
-    queryFn: () => apiGet<ModerationItem[]>(`/moderation/queue?status=${tab}`),
-    enabled: isMod,
+    queryFn: () => apiGet<ModerationItem[]>(`/moderation/queue?status=${tab === "locais" ? "pendente" : tab}`),
+    enabled: isMod && tab !== "locais",
     refetchInterval: 20000,
+  });
+  const { data: shopQueue = [] } = useQuery({
+    queryKey: ["shops", "queue"],
+    queryFn: () => apiGet<Shop[]>("/shops/moderation/queue"),
+    enabled: isMod,
+    refetchInterval: 30000,
   });
   const { data: active = [] } = useQuery({
     queryKey: ["obstacles"],
@@ -274,10 +341,15 @@ export default function AlertsInboxPage() {
           <TabsTrigger value="recusado" data-testid="inbox-tab-recusado">
             Recusados{summary ? ` (${summary.recusado})` : ""}
           </TabsTrigger>
+          <TabsTrigger value="locais" data-testid="inbox-tab-locais">
+            Locais ({shopQueue.length})
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      {loadingItems ? (
+      {tab === "locais" ? (
+        <ShopQueue shops={shopQueue} />
+      ) : loadingItems ? (
         <div className="mt-5 h-56 animate-pulse rounded-2xl bg-slate-800/60" />
       ) : items.length === 0 ? (
         <div className="mt-8 rounded-2xl border border-dashed border-slate-700 p-10 text-center" data-testid="inbox-empty">

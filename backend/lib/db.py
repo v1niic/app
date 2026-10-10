@@ -35,6 +35,16 @@ INDEXES: dict[str, list[IndexModel]] = {
         IndexModel([("user_id", ASCENDING)], name="user_id"),
         IndexModel([("expires_at", ASCENDING)], name="ttl_expires", expireAfterSeconds=0),
     ],
+    # oficinas/borracharias e as avaliações dos ciclistas (uma por pessoa e local)
+    "shops": [
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+        IndexModel([("status", ASCENDING)], name="status"),
+        IndexModel([("osm_id", ASCENDING)], name="osm_id", unique=True, partialFilterExpression={"osm_id": {"$type": "string"}}),
+    ],
+    "shop_reviews": [
+        IndexModel([("shop_id", ASCENDING), ("user_id", ASCENDING)], name="pair_unique", unique=True),
+        IndexModel([("shop_id", ASCENDING), ("created_at", DESCENDING)], name="shop_created"),
+    ],
     # quem segue quem: um documento por par (seguidor → seguido)
     "follows": [
         IndexModel([("follower_id", ASCENDING), ("followee_id", ASCENDING)], name="pair_unique", unique=True),

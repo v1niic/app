@@ -180,6 +180,14 @@ async def delete_account(req: AccountDelete, request: Request, response: Respons
     await db.meetups.update_many(
         {"going_ids": user["id"]}, {"$pull": {"going_ids": user["id"], "going_names": user["name"]}}
     )
+    mine = await db.shop_reviews.distinct("shop_id", {"user_id": user["id"]})
+    await db.shop_reviews.delete_many({"user_id": user["id"]})
+    await db.shops.delete_many({"added_by": user["id"], "status": "pendente"})
+    if mine:
+        from routers.shops import recompute_rating
+
+        for sid in mine:
+            await recompute_rating(sid)
     await db.follows.delete_many({"$or": [{"follower_id": user["id"]}, {"followee_id": user["id"]}]})
     await db.users.delete_one({"id": user["id"]})
     response.delete_cookie("vdb_session", path="/")

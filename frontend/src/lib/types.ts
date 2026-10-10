@@ -37,6 +37,39 @@ export interface PublicUser {
   follows_me: boolean;
 }
 
+export type ShopKind = "borracharia" | "oficina" | "autoreparo";
+
+export interface Shop {
+  id: string;
+  name: string;
+  kind: ShopKind;
+  lat: number;
+  lng: number;
+  address: string;
+  phone: string;
+  hours: string;
+  description: string;
+  website: string;
+  status: "pendente" | "ativo" | "recusado";
+  source: "osm" | "comunidade";
+  added_by_name: string;
+  rating_avg: number;
+  rating_count: number;
+}
+
+export interface ShopReview {
+  user_id: string;
+  user_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+export interface ShopDetail extends Shop {
+  reviews: ShopReview[];
+  my_review: ShopReview | null;
+}
+
 export interface BadgeDef {
   id: string;
   name: string;

@@ -74,3 +74,99 @@ async def run_snap(token: str, force: int = 0):
         detalhes.append(info)
     pending = await db.bikelanes.count_documents({"snapped": {"$ne": True}})
     return {"ok": True, "ajustadas_agora": done, "pendentes": pending, "detalhes": detalhes}
+
+
+# ---- oficinas, borracharias e pontos de autorreparo (OpenStreetMap) ----
+
+OVERPASS_URLS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+FORTALEZA_BBOX = "-3.92,-38.65,-3.68,-38.40"  # sul, oeste, norte, leste
+OVERPASS_QUERY = f"""[out:json][timeout:40];
+(
+  nwr["shop"="bicycle"]({FORTALEZA_BBOX});
+  nwr["shop"="tyres"]({FORTALEZA_BBOX});
+  nwr["amenity"="bicycle_repair_station"]({FORTALEZA_BBOX});
+  nwr["craft"="bicycle_repair"]({FORTALEZA_BBOX});
+);
+out center tags 400;"""
+
+
+def _shop_from_osm(el: dict) -> dict | None:
+    tags = el.get("tags") or {}
+    lat = el.get("lat") or (el.get("center") or {}).get("lat")
+    lng = el.get("lon") or (el.get("center") or {}).get("lon")
+    if lat is None or lng is None:
+        return None
+    name = (tags.get("name") or "").strip()
+    if tags.get("amenity") == "bicycle_repair_station":
+        kind, name = "autoreparo", name or "Ponto de autorreparo"
+    elif tags.get("shop") == "tyres" or "borrach" in name.lower():
+        kind, name = "borracharia", name or "Borracharia"
+    else:
+        kind, name = "oficina", name or "Oficina de bicicletas"
+    street = " ".join(x for x in [tags.get("addr:street", ""), tags.get("addr:housenumber", "")] if x)
+    address = ", ".join(x for x in [street, tags.get("addr:suburb", "")] if x)
+    return {
+        "name": name[:80],
+        "kind": kind,
+        "lat": float(lat),
+        "lng": float(lng),
+        "address": address[:160],
+        "phone": (tags.get("phone") or tags.get("contact:phone") or tags.get("contact:mobile") or "")[:20],
+        "hours": (tags.get("opening_hours") or "")[:120],
+        "website": (tags.get("website") or tags.get("contact:website") or "")[:200],
+    }
+
+
+@router.get("/import-shops")
+async def import_shops(token: str):
+    """Importa do OpenStreetMap as oficinas de bike, borracharias e pontos de autorreparo de Fortaleza.
+
+    Idempotente: repetir atualiza os dados vindos do mapa e mantém avaliações e locais criados pela comunidade.
+    """
+    _check(token)
+    import httpx
+    from datetime import datetime, timezone
+
+    elements: list[dict] | None = None
+    last_error = ""
+    async with httpx.AsyncClient(timeout=60, headers={"User-Agent": "VaiDeBike/1.0 (cycling safety app)"}) as client:
+        for url in OVERPASS_URLS:
+            try:
+                r = await client.post(url, data={"data": OVERPASS_QUERY})
+                r.raise_for_status()
+                elements = r.json().get("elements", [])
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_error = type(exc).__name__
+    if elements is None:
+        return {"ok": False, "erro": "overpass_indisponivel", "detalhe": last_error}
+
+    novos = atualizados = 0
+    for el in elements:
+        data = _shop_from_osm(el)
+        if not data:
+            continue
+        osm_id = f"{el.get('type', 'node')}/{el.get('id')}"
+        res = await db.shops.update_one(
+            {"osm_id": osm_id},
+            {
+                "$set": data,
+                "$setOnInsert": {
+                    "id": f"osm-{osm_id.replace('/', '-')}",
+                    "status": "ativo",
+                    "source": "osm",
+                    "added_by": "",
+                    "added_by_name": "",
+                    "description": "",
+                    "rating_avg": 0.0,
+                    "rating_count": 0,
+                    "created_at": datetime.now(timezone.utc),
+                },
+            },
+            upsert=True,
+        )
+        if res.upserted_id is not None:
+            novos += 1
+        else:
+            atualizados += 1
+    return {"ok": True, "encontrados": len(elements), "novos": novos, "atualizados": atualizados, "total_no_mapa": await db.shops.count_documents({"status": "ativo"})}
