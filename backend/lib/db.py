@@ -56,6 +56,16 @@ INDEXES: dict[str, list[IndexModel]] = {
         IndexModel([("followee_id", ASCENDING), ("created_at", DESCENDING)], name="followee_created"),
         IndexModel([("follower_id", ASCENDING), ("created_at", DESCENDING)], name="follower_created"),
     ],
+    # notificações do sino (somem sozinhas em 60 dias) e avisos do app para todos
+    "notifications": [
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+        IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)], name="user_created"),
+        IndexModel([("created_at", ASCENDING)], name="ttl_60d", expireAfterSeconds=60 * 60 * 24 * 60),
+    ],
+    "announcements": [
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+        IndexModel([("created_at", DESCENDING)], name="created_desc"),
+    ],
     "rides": [IndexModel([("user_id", ASCENDING), ("created_at", DESCENDING)], name="user_created")],
     "obstacles": [
         IndexModel([("id", ASCENDING)], name="id", unique=True),

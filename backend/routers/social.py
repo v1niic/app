@@ -8,6 +8,7 @@ from pymongo.errors import DuplicateKeyError
 
 from lib.auth import require_user
 from lib.db import db
+from lib.notify import notify
 from models.user import PublicUser
 
 router = APIRouter(prefix="/social", tags=["social"])
@@ -97,8 +98,9 @@ async def follow(user_id: str, me: dict = Depends(require_user)):
         raise HTTPException(status_code=404, detail="Ciclista não encontrado")
     try:
         await db.follows.insert_one({"follower_id": me["id"], "followee_id": user_id, "created_at": datetime.now(timezone.utc)})
+        await notify(user_id, "follow", f"{me.get('name', 'Um ciclista')} começou a seguir você", link=f"/ciclistas/{me['id']}", actor_id=me["id"])
     except DuplicateKeyError:
-        pass  # já seguia: tudo bem, o resultado é o mesmo
+        pass  # já seguia: tudo bem, o resultado é o mesmo (e não avisa de novo)
     return (await _public([target], me["id"]))[0]
 
 

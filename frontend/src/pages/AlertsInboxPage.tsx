@@ -6,6 +6,7 @@ import { Check, Inbox, MapPin, Pencil, Phone, ShieldAlert, Wrench, X } from "luc
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
+import AnnouncementForm from "@/components/layout/AnnouncementForm";
 import HazardIcon from "@/components/map/HazardIcon";
 import MiniMap from "@/components/map/MiniMap";
 import PhotoStrip from "@/components/map/PhotoStrip";
@@ -334,6 +335,8 @@ export default function AlertsInboxPage() {
           </p>
         )}
       </div>
+
+      <AnnouncementForm />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="mt-5">
         <TabsList className="w-full">
