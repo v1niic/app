@@ -96,3 +96,9 @@ Depois faça o Redeploy. Sem essas variáveis o pedido "funciona" na tela, mas n
 **Desenhar um trecho que falta (conta dev):** no mapa, botão de camadas → "Desenhar / apagar ciclovias". Toque na rua de ponta a ponta (a cada curva ou esquina), "Concluir", dê o nome e escolha ciclovia (separada da pista) ou ciclofaixa (pintada). O servidor cola o traço nas ruas. Na aba "Apagar", toque num traçado para removê-lo.
 
 As ciclovias de exemplo do seed podem ficar duplicadas sobre as importadas; se quiser, apague as de exemplo no modo "Apagar".
+
+## 13. Fotos nos alertas
+- Ao reportar, o ciclista pode anexar **até 3 fotos** (câmera ou galeria). O navegador reduz cada uma para ~1280 px (~100–250 KB) e **apaga a localização escondida na foto (EXIF)**. A conta dev vê as fotos na Caixa de alertas antes de aprovar, e todos veem as miniaturas no cartão do alerta no mapa (toque para ampliar).
+- As fotos ficam no próprio MongoDB (coleção `obstacle_photos`) e são apagadas junto com o alerta. Cada foto tem um endereço aleatório, impossível de adivinhar.
+- **Vídeo ainda não:** a Vercel aceita no máximo ~4,5 MB por envio, e um vídeo de celular tem dezenas de MB. Para vídeo é preciso um armazenamento de arquivos (ex.: Vercel Blob ou Cloudinary). Se quiser, é o próximo passo.
+- Atenção ao espaço: no plano grátis do Atlas (512 MB) cabem milhares de fotos, mas acompanhe o uso em Atlas → Metrics.

@@ -4,6 +4,8 @@
 // e a sessão passa a viajar como `Authorization: Bearer`, guardada em localStorage.
 const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").replace(/\/$/, "");
 const BASE = `${API_URL}/api`;
+/** Endereço completo de um arquivo servido pela API (ex.: foto de alerta), para usar em <img src>. */
+export const mediaUrl = (path: string): string => `${BASE}${path}`;
 const USE_TOKEN = API_URL !== "";
 const TOKEN_KEY = "vdb_token";
 

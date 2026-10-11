@@ -27,6 +27,7 @@ class Obstacle(BaseModel):
     created_at: datetime
     reject_reason: str = ""
     reviewed_at: datetime | None = None
+    photo_ids: list[str] = Field(default_factory=list)  # fotos de comprovação (GET /obstacles/photos/{id})
 
 
 class ObstacleCreate(BaseModel):
@@ -35,6 +36,8 @@ class ObstacleCreate(BaseModel):
     description: str = Field(min_length=3, max_length=280)
     lat: float = Field(ge=-90, le=90)
     lng: float = Field(ge=-180, le=180)
+    # até 3 fotos (data URL jpeg/png/webp, já reduzidas pelo navegador) que comprovam o defeito
+    photos: list[str] = Field(default_factory=list, max_length=3)
 
 
 class ReportResult(BaseModel):

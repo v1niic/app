@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import HazardIcon from "@/components/map/HazardIcon";
 import MiniMap from "@/components/map/MiniMap";
+import PhotoStrip from "@/components/map/PhotoStrip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -148,6 +149,7 @@ function AlertCard({ item, active }: { item: ModerationItem; active: Obstacle[] 
         </div>
 
         <p className="text-sm leading-snug text-slate-200">{item.description}</p>
+        <PhotoStrip ids={item.photo_ids} />
 
         <p className="text-xs text-slate-400">
           Reportado por <strong className="text-emerald-300" data-testid="inbox-reporter">{item.user_name}</strong>
