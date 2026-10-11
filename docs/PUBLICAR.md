@@ -103,3 +103,9 @@ As ciclovias de exemplo do seed podem ficar duplicadas sobre as importadas; se q
 - **Vídeo ainda não:** a Vercel aceita no máximo ~4,5 MB por envio, e um vídeo de celular tem dezenas de MB. Para vídeo é preciso um armazenamento de arquivos (ex.: Vercel Blob ou Cloudinary). Se quiser, é o próximo passo.
 - Atenção ao espaço: no plano grátis do Atlas (512 MB) cabem milhares de fotos, mas acompanhe o uso em Atlas → Metrics.
 - **Câmera dentro do app:** o botão "Câmera" abre a câmera do celular na própria tela (com botão de tirar foto e de virar a câmera), sem sair do app. Precisa de HTTPS (o site da Vercel já tem) e da permissão do usuário. Se o navegador não suportar ou o usuário negar, o app abre a câmera nativa do celular; o botão "Galeria" continua disponível.
+
+## 14. Notificações (sino)
+- O sino fica no topo, ao lado do botão Reportar, com um contador de não lidas (atualiza a cada 30 s). Mostra: **novo seguidor**, **alerta ou local aprovado/recusado** e **avisos do app**.
+- A conta de gestão envia avisos para todos em **Caixa de alertas → Enviar aviso do app**.
+- Não precisa de configuração nova: as coleções `notifications` e `announcements` são criadas sozinhas. Notificações somem após 60 dias.
+- **Mensagens diretas ainda não existem** (o chat é público). Quando houver, é só chamar `notify()` ao receber uma mensagem.

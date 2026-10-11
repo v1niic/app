@@ -262,3 +262,18 @@ export interface Meetup {
   going: boolean;
   going_names: string[];
 }
+
+export interface NotificationItem {
+  id: string;
+  kind: "follow" | "alert_ok" | "alert_no" | "shop_ok" | "shop_no" | "announcement";
+  title: string;
+  body: string;
+  link: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface NotificationFeed {
+  unread: number;
+  items: NotificationItem[];
+}

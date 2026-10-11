@@ -190,6 +190,7 @@ async def delete_account(req: AccountDelete, request: Request, response: Respons
 
         for sid in mine:
             await recompute_rating(sid)
+    await db.notifications.delete_many({"user_id": user["id"]})
     await db.follows.delete_many({"$or": [{"follower_id": user["id"]}, {"followee_id": user["id"]}]})
     await db.users.delete_one({"id": user["id"]})
     response.delete_cookie("vdb_session", path="/")

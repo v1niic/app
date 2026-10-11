@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from lib.auth import require_moderator, require_user
 from lib.db import db
+from lib.notify import notify
 from lib.roles import is_moderator
 from models.shop import ReviewCreate, Shop, ShopCreate, ShopDetail, ShopReject, ShopReview
 
@@ -90,14 +91,18 @@ async def approve_shop(shop_id: str, _: dict = Depends(require_moderator)):
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Local não encontrado ou já publicado")
+    if doc.get("added_by"):
+        await notify(doc["added_by"], "shop_ok", f"{doc.get('name', 'Seu local')} já está no mapa", "Obrigado por indicar!", f"/map?lat={doc['lat']}&lng={doc['lng']}")
     return _public(doc)
 
 
 @router.post("/{shop_id}/reject")
 async def reject_shop(shop_id: str, req: ShopReject, _: dict = Depends(require_moderator)):
-    res = await db.shops.delete_one({"id": shop_id, "status": "pendente"})  # recusado = removido (nada a reconsiderar)
-    if res.deleted_count == 0:
+    doc = await db.shops.find_one_and_delete({"id": shop_id, "status": "pendente"})  # recusado = removido (nada a reconsiderar)
+    if not doc:
         raise HTTPException(status_code=404, detail="Local não encontrado ou já analisado")
+    if doc.get("added_by"):
+        await notify(doc["added_by"], "shop_no", f"{doc.get('name', 'Seu local')} não foi publicado", "A moderação não conseguiu confirmar este local.")
     return {"ok": True}
 
 

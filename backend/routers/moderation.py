@@ -11,6 +11,7 @@ from pymongo import ReturnDocument
 from lib.auth import require_moderator
 from lib.dates import utc_aware
 from lib.db import db
+from lib.notify import notify
 from models.obstacle import ModerationItem, ModerationSummary, Obstacle, ReviewEdit, ReviewReject
 from routers.obstacles import XP_REPORT, _award_xp, _from_doc
 
@@ -86,6 +87,7 @@ async def approve(id: str, edit: ReviewEdit | None = None, mod: dict = Depends(r
         raise HTTPException(status_code=404, detail="Alerta não encontrado ou já publicado")
     if await db.users.find_one({"id": doc["user_id"]}, {"id": 1}):  # autor pode ter excluído a conta
         await _award_xp(doc["user_id"], XP_REPORT, {"reports_count": 1})
+        await notify(doc["user_id"], "alert_ok", "Seu alerta foi publicado no mapa 🎉", f"Você ganhou +{XP_REPORT} XP. Obrigado por ajudar os ciclistas!", f"/map?lat={doc['lat']}&lng={doc['lng']}")
     doc["created_at"] = utc_aware(doc["created_at"])
     return _from_doc(doc)
 
@@ -107,4 +109,5 @@ async def reject(id: str, body: ReviewReject | None = None, mod: dict = Depends(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Alerta não encontrado ou já analisado")
+    await notify(doc["user_id"], "alert_no", "Seu alerta não foi publicado", reason or "A moderação não conseguiu confirmar este alerta.", "/profile")
     return _from_doc(doc)
