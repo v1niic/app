@@ -234,7 +234,7 @@ export default function NavigationPanel({ nav, ride, lanes, sheetIndex }: PanelP
           <div>
             <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Ciclovias de Fortaleza</p>
             <ul className="space-y-1">
-              {lanes.map((l) => {
+              {lanes.filter((l) => l.source !== "osm").slice(0, 15).map((l) => {
                 const end = l.coordinates[l.coordinates.length - 1];
                 if (!end) return null;
                 return (

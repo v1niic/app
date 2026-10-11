@@ -49,6 +49,10 @@ interface FortalezaMapProps {
   /** borracharias, oficinas e pontos de autorreparo (ícones redondos azuis/roxos/verdes) */
   shops?: Shop[];
   onSelectShop?: (s: Shop) => void;
+  /** traçado em desenho (conta dev): pontos tocados, ligados por uma linha tracejada amarela */
+  drawPoints?: [number, number][];
+  /** modo apagar: tocar num traçado o seleciona (sem isso, tocar numa ciclovia só marca um ponto no mapa) */
+  onSelectLane?: (lane: BikeLane) => void;
   focus?: FocusRequest | null;
   className?: string;
 }
@@ -134,9 +138,12 @@ export default function FortalezaMap({
   onSelectObstacle,
   shops,
   onSelectShop,
+  drawPoints,
+  onSelectLane,
   focus,
   className,
 }: FortalezaMapProps) {
+  const drawLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const lanesRef = useRef<L.LayerGroup | null>(null);
@@ -214,6 +221,7 @@ export default function FortalezaMap({
 
     lanesRef.current = L.layerGroup().addTo(map);
     routeGroupRef.current = L.layerGroup().addTo(map);
+    drawLayerRef.current = L.layerGroup().addTo(map);
     shopsLayerRef.current = L.layerGroup().addTo(map); // abaixo dos perigos: o alerta sempre fica por cima
     obstaclesRef.current = L.layerGroup().addTo(map);
     userGroupRef.current = L.layerGroup().addTo(map);
@@ -285,7 +293,9 @@ export default function FortalezaMap({
         lineCap: "round",
         lineJoin: "round",
         dashArray: approx ? "2 9" : lane.kind === "ciclofaixa" ? "8 8" : undefined,
+        bubblingMouseEvents: !onSelectLane,
       })
+        .on("click", () => onSelectLane?.(lane))
         .bindTooltip(
           `<strong>${lane.name}</strong><br/>${lane.kind === "ciclovia" ? "Ciclovia" : "Ciclofaixa"} · ${lane.length_km} km${approx ? "<br/><em>traçado aproximado</em>" : ""}`,
           { direction: "top" },
@@ -294,10 +304,11 @@ export default function FortalezaMap({
     }
     if (!fittedRef.current && bikeLanes.length > 0 && mapRef.current) {
       fittedRef.current = true;
-      const bounds = L.latLngBounds(bikeLanes.flatMap((l) => l.coordinates as L.LatLngTuple[]));
-      mapRef.current.fitBounds(bounds, { padding: [40, 40] });
+      const own = bikeLanes.filter((l) => l.source !== "osm");
+      const bounds = L.latLngBounds((own.length > 0 ? own : bikeLanes).flatMap((l) => l.coordinates as L.LatLngTuple[]));
+      if (bounds.isValid()) mapRef.current.fitBounds(bounds, { padding: [40, 40] });
     }
-  }, [bikeLanes]);
+  }, [bikeLanes, onSelectLane]);
 
   // marcadores de obstáculos — atualização incremental (sem piscar a cada atualização de 6 s)
   useEffect(() => {
@@ -342,6 +353,25 @@ export default function FortalezaMap({
     }
     if (obstacles.length > 0) populatedRef.current = true;
   }, [obstacles, routeObstacleIds]);
+
+  // traçado em desenho
+  useEffect(() => {
+    const g = drawLayerRef.current;
+    if (!g) return;
+    g.clearLayers();
+    const pts = drawPoints ?? [];
+    if (pts.length > 1) L.polyline(pts, { color: "#FACC15", weight: 5, opacity: 0.95, dashArray: "6 8" }).addTo(g);
+    pts.forEach((p, i) =>
+      L.circleMarker(p, {
+        radius: i === 0 || i === pts.length - 1 ? 7 : 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: i === 0 ? "#22C55E" : "#FACC15",
+        fillOpacity: 1,
+        interactive: false,
+      }).addTo(g),
+    );
+  }, [drawPoints]);
 
   // borracharias e oficinas: recria só quando a lista muda (são poucas e quase não mudam)
   useEffect(() => {
