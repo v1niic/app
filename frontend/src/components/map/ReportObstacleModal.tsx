@@ -3,10 +3,11 @@ import type { ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
-import { Camera, X } from "lucide-react";
+import { Camera, Image as ImageIcon, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { ApiError, apiDetail, apiPost } from "@/lib/api";
+import CameraCapture from "@/components/map/CameraCapture";
 import { fileToPhotoDataUrl } from "@/lib/image";
 import { OBSTACLE_ICONS } from "@/lib/icons";
 import { OBSTACLE_TYPES, SEVERITY_LABELS } from "@/lib/types";
@@ -36,7 +37,16 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [reading, setReading] = useState(false);
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null); // galeria
+  const nativeCamRef = useRef<HTMLInputElement | null>(null); // plano B: câmera do sistema (capture)
+  const [cameraOpen, setCameraOpen] = useState(false);
+
+  const addPhoto = (dataUrl: string) => setPhotos((p) => [...p, dataUrl].slice(0, MAX_PHOTOS));
+  const cameraUnavailable = () => {
+    setCameraOpen(false);
+    toast.info("Não deu para abrir a câmera aqui. Abrindo a câmera do celular…");
+    window.setTimeout(() => nativeCamRef.current?.click(), 50);
+  };
 
   const onPickPhotos = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS - photos.length);
@@ -205,18 +215,32 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
                   </span>
                 ))}
                 {photos.length < MAX_PHOTOS && (
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={reading}
-                    className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-slate-600 text-[10px] font-semibold text-slate-400 hover:border-emerald-500 hover:text-emerald-300 disabled:opacity-60"
-                    data-testid="report-photo-add"
-                  >
-                    <Camera className="h-5 w-5" />
-                    {reading ? "…" : "Foto"}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCameraOpen(true)}
+                      disabled={reading}
+                      className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-emerald-500/60 bg-emerald-500/5 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-60"
+                      data-testid="report-photo-camera"
+                    >
+                      <Camera className="h-5 w-5" />
+                      Câmera
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      disabled={reading}
+                      className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-slate-600 text-[10px] font-semibold text-slate-400 hover:border-slate-400 disabled:opacity-60"
+                      data-testid="report-photo-add"
+                    >
+                      <ImageIcon className="h-5 w-5" />
+                      {reading ? "…" : "Galeria"}
+                    </button>
+                  </>
                 )}
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickPhotos} data-testid="report-photo-input" />
+                <input ref={nativeCamRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPickPhotos} data-testid="report-photo-native-camera" />
+                <CameraCapture open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={addPhoto} onUnavailable={cameraUnavailable} />
               </div>
               <p className="text-[10px] text-slate-500">Até {MAX_PHOTOS} fotos. A localização escondida na foto é removida.</p>
             </div>

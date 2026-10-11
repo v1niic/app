@@ -102,3 +102,4 @@ As ciclovias de exemplo do seed podem ficar duplicadas sobre as importadas; se q
 - As fotos ficam no próprio MongoDB (coleção `obstacle_photos`) e são apagadas junto com o alerta. Cada foto tem um endereço aleatório, impossível de adivinhar.
 - **Vídeo ainda não:** a Vercel aceita no máximo ~4,5 MB por envio, e um vídeo de celular tem dezenas de MB. Para vídeo é preciso um armazenamento de arquivos (ex.: Vercel Blob ou Cloudinary). Se quiser, é o próximo passo.
 - Atenção ao espaço: no plano grátis do Atlas (512 MB) cabem milhares de fotos, mas acompanhe o uso em Atlas → Metrics.
+- **Câmera dentro do app:** o botão "Câmera" abre a câmera do celular na própria tela (com botão de tirar foto e de virar a câmera), sem sair do app. Precisa de HTTPS (o site da Vercel já tem) e da permissão do usuário. Se o navegador não suportar ou o usuário negar, o app abre a câmera nativa do celular; o botão "Galeria" continua disponível.

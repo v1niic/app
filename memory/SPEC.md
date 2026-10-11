@@ -110,3 +110,4 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 ## Fotos nos alertas
 - `ObstacleCreate.photos` (≤3 data URLs jpeg/png/webp ≤450 mil chars, validadas por assinatura) → coleção `obstacle_photos` (bytes, id aleatório de 32 hex); `Obstacle.photo_ids`; `GET /obstacles/photos/{id}` (público por id secreto, cache 1 dia). Apagadas ao retirar/remover o alerta e ao excluir a conta (pendentes).
 - Frontend: `fileToPhotoDataUrl` (canvas, JPEG, tira EXIF), seletor no `ReportObstacleModal`, `PhotoStrip` no cartão do mapa e na caixa de alertas. Vídeo exige storage externo (limite de 4,5 MB da Vercel).
+- Câmera no app: `CameraCapture` (portal z-[3500], `getUserMedia`, botão virar câmera, desenha o frame em canvas → `canvasToPhotoDataUrl`). Sem suporte/permissão → `onUnavailable` aciona `<input capture="environment">`; botão "Galeria" separado.

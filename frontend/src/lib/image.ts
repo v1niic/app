@@ -28,6 +28,15 @@ export async function fileToAvatarDataUrl(file: File, size = 256): Promise<strin
 
 const PHOTO_MAX_CHARS = 420_000; // o servidor aceita até ~450 mil caracteres por foto
 
+/** JPEG do canvas, baixando a qualidade até caber no limite do servidor. */
+export function canvasToPhotoDataUrl(canvas: HTMLCanvasElement): string {
+  for (const q of [0.78, 0.65, 0.5, 0.38]) {
+    const data = canvas.toDataURL("image/jpeg", q);
+    if (data.length <= PHOTO_MAX_CHARS) return data;
+  }
+  throw new Error("Não foi possível reduzir essa foto. Tente outra.");
+}
+
 /**
  * Foto de comprovação: reduz para no máximo `maxSide` px no lado maior e devolve um JPEG (data URL, ~100–250 KB).
  * Ao redesenhar no canvas os metadados da câmera (inclusive a localização EXIF) são descartados.
@@ -53,11 +62,7 @@ export async function fileToPhotoDataUrl(file: File, maxSide = 1280): Promise<st
     ctx.fillStyle = "#0f172a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    for (const q of [0.78, 0.65, 0.5, 0.38]) {
-      const data = canvas.toDataURL("image/jpeg", q);
-      if (data.length <= PHOTO_MAX_CHARS) return data;
-    }
-    throw new Error("Não foi possível reduzir essa foto. Tente outra.");
+    return canvasToPhotoDataUrl(canvas);
   } finally {
     URL.revokeObjectURL(url);
   }
