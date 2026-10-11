@@ -81,3 +81,30 @@ def test_report_obstacle_requires_auth():
             },
         )
         assert resp.status_code in (401, 403)
+
+
+def test_report_with_photo_and_reject_fake_image():
+    import base64
+    import uuid
+
+    import httpx
+
+    from tests.conftest import API_URL
+
+    c = httpx.Client(base_url=API_URL, timeout=30.0)
+    c.post("/auth/register", json={"name": "Foto Teste", "email": f"foto_{uuid.uuid4().hex[:8]}@example.com", "password": "senha123"})
+    body = {"type": "buraco", "severity": "media", "description": "tscheck com foto", "lat": -3.74, "lng": -38.5}
+    jpeg = b"\xff\xd8\xff\xe0" + b"0" * 64
+    ok = c.post("/obstacles", json={**body, "photos": ["data:image/jpeg;base64," + base64.b64encode(jpeg).decode()]})
+    assert ok.status_code == 200, ok.text
+    ids = ok.json()["obstacle"]["photo_ids"]
+    assert len(ids) == 1
+    got = httpx.get(f"{API_URL}/obstacles/photos/{ids[0]}", timeout=30.0)
+    assert got.status_code == 200 and got.headers["content-type"] == "image/jpeg" and got.content == jpeg
+    fake = c.post("/obstacles", json={**body, "photos": ["data:image/jpeg;base64," + base64.b64encode(b"<html>").decode()]})
+    assert fake.status_code == 422
+    too_many = c.post("/obstacles", json={**body, "photos": ["data:image/jpeg;base64,AAAA"] * 4})
+    assert too_many.status_code == 422
+    # retirar o alerta apaga a foto
+    assert c.delete(f"/obstacles/{ok.json()['obstacle']['id']}").status_code == 200
+    assert httpx.get(f"{API_URL}/obstacles/photos/{ids[0]}", timeout=30.0).status_code == 404

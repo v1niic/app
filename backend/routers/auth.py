@@ -174,6 +174,8 @@ async def delete_account(req: AccountDelete, request: Request, response: Respons
     await db.sessions.delete_many({"user_id": user["id"]})
     await db.rides.delete_many({"user_id": user["id"]})
     # alertas ainda não aprovados somem com a conta; os já publicados continuam no mapa para proteger a comunidade
+    for oid in await db.obstacles.distinct("id", {"user_id": user["id"], "status": {"$in": ["pendente", "recusado"]}}):
+        await db.obstacle_photos.delete_many({"obstacle_id": oid})
     await db.obstacles.delete_many({"user_id": user["id"], "status": {"$in": ["pendente", "recusado"]}})
     await db.chat_messages.delete_many({"user_id": user["id"]})
     await db.meetups.delete_many({"user_id": user["id"]})

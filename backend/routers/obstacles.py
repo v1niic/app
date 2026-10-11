@@ -1,7 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import base64
+import re
+
+from bson import Binary
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pymongo import ReturnDocument
 
 from lib.auth import get_current_user, require_user
@@ -18,6 +22,46 @@ XP_REPORT = 50
 XP_CONFIRM = 25
 MAX_PENDING_PER_USER = 10  # evita encher a fila de análise
 PUBLIC_STATUSES = ["ativo", "resolvido"]  # o que qualquer pessoa pode ver no mapa
+
+
+PHOTO_RE = re.compile(r"^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$")
+PHOTO_MAX_CHARS = 450_000  # ~330 KB por foto; o navegador envia ~100-250 KB
+_MAGIC = {"jpeg": (b"\xff\xd8\xff",), "png": (b"\x89PNG",), "webp": (b"RIFF",)}
+
+
+def _decode_photos(photos: list[str]) -> list[tuple[str, bytes]]:
+    """Valida e decodifica as fotos ANTES de criar o alerta: formato, tamanho e assinatura real do arquivo."""
+    out: list[tuple[str, bytes]] = []
+    for p in photos:
+        m = PHOTO_RE.match(p) if len(p) <= PHOTO_MAX_CHARS else None
+        if not m:
+            raise HTTPException(status_code=422, detail="Foto inválida ou grande demais")
+        kind = m.group(1)
+        try:
+            raw = base64.b64decode(m.group(2), validate=True)
+        except Exception:  # noqa: BLE001
+            raise HTTPException(status_code=422, detail="Foto inválida")
+        if not raw.startswith(_MAGIC[kind]) or (kind == "webp" and raw[8:12] != b"WEBP"):
+            raise HTTPException(status_code=422, detail="O arquivo enviado não é uma imagem válida")
+        out.append((f"image/{kind}", raw))
+    return out
+
+
+async def _delete_photos(obstacle_id: str) -> None:
+    await db.obstacle_photos.delete_many({"obstacle_id": obstacle_id})
+
+
+@router.get("/photos/{photo_id}")
+async def get_photo(photo_id: str):
+    """Foto de comprovação. O endereço é um código aleatório impossível de adivinhar (vale também para alertas em análise)."""
+    doc = await db.obstacle_photos.find_one({"id": photo_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Foto não encontrada")
+    return Response(
+        content=bytes(doc["data"]),
+        media_type=doc["content_type"],
+        headers={"Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 def _from_doc(d: dict) -> Obstacle:
@@ -76,9 +120,19 @@ async def create_obstacle(req: ObstacleCreate, user: dict = Depends(require_user
                 status_code=429,
                 detail="Você já tem 10 alertas aguardando análise. Espere a aprovação para enviar mais",
             )
+    photos = _decode_photos(req.photos)
     now = datetime.now(timezone.utc)
+    obstacle_id = str(uuid.uuid4())
+    photo_ids: list[str] = []
+    for content_type, raw in photos:
+        pid = uuid.uuid4().hex
+        photo_ids.append(pid)
+        await db.obstacle_photos.insert_one(
+            {"id": pid, "obstacle_id": obstacle_id, "user_id": user["id"], "content_type": content_type, "data": Binary(raw), "created_at": now}
+        )
     doc = {
-        "id": str(uuid.uuid4()),
+        "id": obstacle_id,
+        "photo_ids": photo_ids,
         "user_id": user["id"],
         "user_name": user["name"],  # fica registrado no alerta e aparece no mapa depois de aprovado
         "type": req.type,
@@ -117,6 +171,7 @@ async def withdraw_obstacle(id: str, user: dict = Depends(require_user)):
     res = await db.obstacles.delete_one(query)
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Alerta não encontrado ou já publicado")
+    await _delete_photos(id)
     return {"ok": True}
 
 

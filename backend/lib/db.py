@@ -35,6 +35,11 @@ INDEXES: dict[str, list[IndexModel]] = {
         IndexModel([("user_id", ASCENDING)], name="user_id"),
         IndexModel([("expires_at", ASCENDING)], name="ttl_expires", expireAfterSeconds=0),
     ],
+    # fotos de comprovação dos alertas (bytes da imagem); somem junto com o alerta
+    "obstacle_photos": [
+        IndexModel([("id", ASCENDING)], name="id", unique=True),
+        IndexModel([("obstacle_id", ASCENDING)], name="obstacle_id"),
+    ],
     # oficinas/borracharias e as avaliações dos ciclistas (uma por pessoa e local)
     "shops": [
         IndexModel([("id", ASCENDING)], name="id", unique=True),

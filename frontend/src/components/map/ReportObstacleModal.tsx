@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import { Camera, X } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { ApiError, apiDetail, apiPost } from "@/lib/api";
+import { fileToPhotoDataUrl } from "@/lib/image";
 import { OBSTACLE_ICONS } from "@/lib/icons";
 import { OBSTACLE_TYPES, SEVERITY_LABELS } from "@/lib/types";
 import type { ObstacleType, ReportResult, Severity } from "@/lib/types";
@@ -23,6 +26,7 @@ interface Props {
 
 const ALL_TYPES = Object.keys(OBSTACLE_TYPES) as ObstacleType[];
 const SEVERITIES: Severity[] = ["baixa", "media", "alta"];
+const MAX_PHOTOS = 3;
 
 export default function ReportObstacleModal({ open, onOpenChange, coords }: Props) {
   const { data: user } = useAuth();
@@ -30,6 +34,25 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
   const [type, setType] = useState<ObstacleType>("buraco");
   const [severity, setSeverity] = useState<Severity>("media");
   const [description, setDescription] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [reading, setReading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const onPickPhotos = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []).slice(0, MAX_PHOTOS - photos.length);
+    e.target.value = ""; // permite escolher o mesmo arquivo de novo
+    if (files.length === 0) return;
+    setReading(true);
+    try {
+      const added: string[] = [];
+      for (const f of files) added.push(await fileToPhotoDataUrl(f));
+      setPhotos((p) => [...p, ...added].slice(0, MAX_PHOTOS));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível ler a foto");
+    } finally {
+      setReading(false);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -39,6 +62,7 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
         description,
         lat: coords?.lat ?? 0,
         lng: coords?.lng ?? 0,
+        photos,
       }),
     onSuccess: (res) => {
       void queryClient.invalidateQueries({ queryKey: ["obstacles"] });
@@ -57,6 +81,7 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
         confetti({ particleCount: 130, spread: 75, origin: { y: 0.7 }, colors: ["#10B981", "#F97316", "#FBBF24"] });
       }
       setDescription("");
+      setPhotos([]);
       onOpenChange(false);
     },
     onError: (err) => {
@@ -159,6 +184,41 @@ export default function ReportObstacleModal({ open, onOpenChange, coords }: Prop
                 rows={3}
                 maxLength={280}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Foto do defeito <span className="font-normal normal-case text-slate-500">(opcional, ajuda a aprovar)</span>
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {photos.map((p, i) => (
+                  <span key={i} className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-700" data-testid="report-photo">
+                    <img src={p} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPhotos((arr) => arr.filter((_, j) => j !== i))}
+                      aria-label={`Remover foto ${i + 1}`}
+                      className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                {photos.length < MAX_PHOTOS && (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={reading}
+                    className="flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-slate-600 text-[10px] font-semibold text-slate-400 hover:border-emerald-500 hover:text-emerald-300 disabled:opacity-60"
+                    data-testid="report-photo-add"
+                  >
+                    <Camera className="h-5 w-5" />
+                    {reading ? "…" : "Foto"}
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickPhotos} data-testid="report-photo-input" />
+              </div>
+              <p className="text-[10px] text-slate-500">Até {MAX_PHOTOS} fotos. A localização escondida na foto é removida.</p>
             </div>
 
             {coords && (

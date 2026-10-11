@@ -96,6 +96,7 @@ export interface Obstacle {
   confirms: number;
   created_at: string;
   reject_reason?: string;
+  photo_ids?: string[];
 }
 
 export interface ModerationItem extends Obstacle {

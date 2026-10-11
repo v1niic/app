@@ -16,6 +16,7 @@ import HazardIcon from "@/components/map/HazardIcon";
 import MapHud from "@/components/map/MapHud";
 import LaneEditor from "@/components/map/LaneEditor";
 import type { EditorMode } from "@/components/map/LaneEditor";
+import PhotoStrip from "@/components/map/PhotoStrip";
 import NavBubble from "@/components/map/NavBubble";
 import NavigationPanel, { ManeuverBanner } from "@/components/map/NavigationPanel";
 import ReportObstacleModal from "@/components/map/ReportObstacleModal";
@@ -598,6 +599,7 @@ export default function MapPage() {
           </CardHeader>
           <CardContent className="text-xs text-slate-300">
             <p className="leading-relaxed">{selected.description}</p>
+            <PhotoStrip ids={selected.photo_ids} />
             <p className="mt-2 text-slate-500">
               {formatDistanceToNow(new Date(selected.created_at), { addSuffix: true, locale: ptBR })} ·{" "}
               <span data-testid="obstacle-confirms">{selected.confirms} confirmações</span>
