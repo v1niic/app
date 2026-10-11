@@ -101,3 +101,8 @@ tempo real com alerta de proximidade, cadastro/login e gamificação (XP, nívei
 - Coleções `shops` (kind borracharia|oficina|autoreparo, status pendente|ativo, source osm|comunidade, rating_avg/count) e `shop_reviews` (par único shop+user). `routers/shops.py`: `GET /shops` (ativos), `POST /shops` (sugestão → pendente; moderador publica direto; máx. 5 pendentes; 409 duplicata ≤40 m com mesmo nome), `GET /shops/{id}` (com avaliações, exige login), `PUT|DELETE /shops/{id}/review`, moderação `GET /shops/moderation/queue`, `POST /shops/{id}/approve|reject`.
 - `GET /admin/import-shops?token=` (SEED_TOKEN): Overpass → upsert por `osm_id`; nenhum dado inventado no seed.
 - Frontend: `lib/shops.ts`, marcadores em `FortalezaMap` (props `shops`/`onSelectShop`), `ShopCard`, `SuggestShopModal`, aba "Locais" na caixa de alertas, toggle em Camadas.
+
+## Traçado de ciclovias (OSM + desenho)
+- `BikeLane.source` seed|osm|comunidade. `GET /admin/import-lanes?token=` (Overpass, `out geom`, Douglas-Peucker 2,5 m, mín. 60 m, máx. 2500 trechos/60 mil pontos, nomeados primeiro; id `osm-way-<id>`). `GET /bikelanes` até 3000 (GZip no servidor).
+- Conta dev: `POST /bikelanes {name,kind,waypoints[2..60]}` (snap às ruas via roteador; 503 se indisponível; linha aproximada se resultado estranho) e `DELETE /bikelanes/{id}`.
+- Frontend: `LaneEditor` (modos desenhar/apagar), `FortalezaMap` props `drawPoints`/`onSelectLane`; lista de ciclovias do painel mostra só as não-OSM (15).

@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 import os
 import logging
 from pathlib import Path
@@ -126,6 +127,7 @@ api_router.include_router(shops_router)
 # Include the router in the main app
 app.include_router(api_router)
 
+app.add_middleware(GZipMiddleware, minimum_size=1000)  # a lista de ciclovias importadas é grande: comprime
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

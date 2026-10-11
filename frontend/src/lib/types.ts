@@ -118,6 +118,8 @@ export interface BikeLane {
   coordinates: [number, number][];
   /** true quando `coordinates` já foi ajustada às ruas reais (polilinha densa) */
   snapped?: boolean;
+  /** de onde veio: seed (exemplo), osm (OpenStreetMap) ou comunidade (desenhada pela equipe) */
+  source?: "seed" | "osm" | "comunidade";
 }
 
 export interface RouteStep {

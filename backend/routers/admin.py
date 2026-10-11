@@ -170,3 +170,134 @@ async def import_shops(token: str):
         else:
             atualizados += 1
     return {"ok": True, "encontrados": len(elements), "novos": novos, "atualizados": atualizados, "total_no_mapa": await db.shops.count_documents({"status": "ativo"})}
+
+
+# ---- ciclovias e ciclofaixas reais (OpenStreetMap) ----
+
+LANES_QUERY = f"""[out:json][timeout:60];
+(
+  way["highway"="cycleway"]["bicycle"!="no"]({FORTALEZA_BBOX});
+  way["highway"]["highway"!="cycleway"]["cycleway"~"^(lane|track|opposite_lane|opposite_track)$"]({FORTALEZA_BBOX});
+  way["highway"]["cycleway:both"~"^(lane|track)$"]({FORTALEZA_BBOX});
+  way["highway"]["cycleway:left"~"^(lane|track)$"]({FORTALEZA_BBOX});
+  way["highway"]["cycleway:right"~"^(lane|track)$"]({FORTALEZA_BBOX});
+);
+out geom tags;"""
+MAX_IMPORTED_LANES = 2500
+MAX_IMPORTED_POINTS = 60000
+MIN_LANE_M = 60.0
+
+
+def _simplify(pts: list[list[float]], eps_m: float = 2.5) -> list[list[float]]:
+    """Douglas-Peucker em plano local: tira pontos que mal mudam o desenho (payload menor, mapa mais leve)."""
+    import math
+
+    if len(pts) < 3:
+        return pts
+    kx = 111320.0 * math.cos(math.radians(pts[0][0]))
+    ky = 110540.0
+    xy = [(p[1] * kx, p[0] * ky) for p in pts]
+    keep = [False] * len(pts)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(pts) - 1)]
+    while stack:
+        a, b = stack.pop()
+        ax, ay = xy[a]
+        bx, by = xy[b]
+        dx, dy = bx - ax, by - ay
+        seg2 = dx * dx + dy * dy
+        best_d, best_i = 0.0, -1
+        for i in range(a + 1, b):
+            px, py = xy[i]
+            t = 0.0 if seg2 == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / seg2))
+            d = math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+            if d > best_d:
+                best_d, best_i = d, i
+        if best_i >= 0 and best_d > eps_m:
+            keep[best_i] = True
+            stack += [(a, best_i), (best_i, b)]
+    return [p for p, k in zip(pts, keep) if k]
+
+
+def _lane_from_osm(el: dict) -> dict | None:
+    from lib.routing import polyline_length_m
+
+    tags = el.get("tags") or {}
+    geom = el.get("geometry") or []
+    pts = [[round(g["lat"], 5), round(g["lon"], 5)] for g in geom if "lat" in g and "lon" in g]
+    if len(pts) < 2:
+        return None
+    pts = _simplify(pts)
+    length_m = polyline_length_m(pts)
+    if length_m < MIN_LANE_M:
+        return None
+    separated = tags.get("highway") == "cycleway" or any(
+        tags.get(k) == "track" for k in ("cycleway", "cycleway:both", "cycleway:left", "cycleway:right")
+    )
+    kind = "ciclovia" if separated else "ciclofaixa"
+    name = (tags.get("name") or tags.get("ref") or "").strip()
+    return {
+        "id": f"osm-way-{el['id']}",
+        "name": (name or ("Ciclovia sem nome" if kind == "ciclovia" else "Ciclofaixa sem nome"))[:80],
+        "kind": kind,
+        "length_km": round(length_m / 1000, 2),
+        "coordinates": pts,
+        "source": "osm",
+        "snapped": True,  # a geometria do OpenStreetMap já segue as ruas
+        "_named": bool(name),
+        "_len": length_m,
+    }
+
+
+@router.get("/import-lanes")
+async def import_lanes(token: str):
+    """Importa do OpenStreetMap as ciclovias e ciclofaixas de Fortaleza (já seguindo as ruas).
+
+    Idempotente: repetir atualiza as importadas. Não mexe nas ciclovias do seed nem nas desenhadas pela equipe.
+    """
+    _check(token)
+    import httpx
+
+    elements: list[dict] | None = None
+    last_error = ""
+    async with httpx.AsyncClient(timeout=90, headers={"User-Agent": "VaiDeBike/1.0 (cycling safety app)"}) as client:
+        for url in OVERPASS_URLS:
+            try:
+                r = await client.post(url, data={"data": LANES_QUERY})
+                r.raise_for_status()
+                elements = r.json().get("elements", [])
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_error = type(exc).__name__
+    if elements is None:
+        return {"ok": False, "erro": "overpass_indisponivel", "detalhe": last_error}
+
+    lanes = [x for x in (_lane_from_osm(e) for e in elements) if x]
+    # com limite de tamanho: primeiro as que têm nome, depois as mais longas
+    lanes.sort(key=lambda x: (not x["_named"], -x["_len"]))
+    chosen: list[dict] = []
+    points = 0
+    for lane in lanes:
+        if len(chosen) >= MAX_IMPORTED_LANES or points + len(lane["coordinates"]) > MAX_IMPORTED_POINTS:
+            continue
+        chosen.append(lane)
+        points += len(lane["coordinates"])
+
+    novos = atualizados = 0
+    for lane in chosen:
+        doc = {k: v for k, v in lane.items() if not k.startswith("_")}
+        res = await db.bikelanes.update_one({"id": doc["id"]}, {"$set": doc}, upsert=True)
+        if res.upserted_id is not None:
+            novos += 1
+        else:
+            atualizados += 1
+    return {
+        "ok": True,
+        "encontrados": len(elements),
+        "usados": len(chosen),
+        "descartados_por_tamanho_ou_limite": len(lanes) - len(chosen),
+        "pontos": points,
+        "novos": novos,
+        "atualizados": atualizados,
+        "total_ciclovias_no_mapa": await db.bikelanes.count_documents({}),
+    }

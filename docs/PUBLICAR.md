@@ -89,3 +89,10 @@ Depois faça o Redeploy. Sem essas variáveis o pedido "funciona" na tela, mas n
 **Remover um local do mapa:** abra o ícone no mapa → no fim da bolha, "Remover este local do mapa" (pede confirmação e apaga também as avaliações). Só aparece para quem adicionou o local e para a conta dev.
 
 **Remover um alerta do mapa (conta dev):** toque no alerta → no fim do cartão, "Remover alerta do mapa" (pede confirmação). Vale para qualquer alerta, inclusive os já aprovados e os "resolvidos". O XP que o ciclista já ganhou não é retirado. Usuários comuns só retiram os próprios alertas que ainda estão em análise ou recusados (pelo Perfil).
+
+## 12. Ciclovias e ciclofaixas no mapa (traçado)
+**Importar as reais do OpenStreetMap (uma vez):** com `SEED_TOKEN` criado na API (seção 5), abra `https://SEU-API/api/admin/import-lanes?token=SEU_TOKEN`. Ele traz as ciclovias e ciclofaixas já mapeadas em Fortaleza (as que ficam sobre as avenidas, seguindo as ruas) e responde, por exemplo, `{"ok":true,"encontrados":…,"usados":…,"novos":…}`. Pode demorar até ~1 minuto. Repetir só atualiza. Depois apague o `SEED_TOKEN`. Se vier `overpass_indisponivel`, tente de novo mais tarde. Obs.: o que o OpenStreetMap ainda não tem não aparece; use o desenho abaixo.
+
+**Desenhar um trecho que falta (conta dev):** no mapa, botão de camadas → "Desenhar / apagar ciclovias". Toque na rua de ponta a ponta (a cada curva ou esquina), "Concluir", dê o nome e escolha ciclovia (separada da pista) ou ciclofaixa (pintada). O servidor cola o traço nas ruas. Na aba "Apagar", toque num traçado para removê-lo.
+
+As ciclovias de exemplo do seed podem ficar duplicadas sobre as importadas; se quiser, apague as de exemplo no modo "Apagar".

@@ -5,7 +5,7 @@ import confetti from "canvas-confetti";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import { FlagTriangleRight, Layers, LocateFixed, Navigation, Volume2, VolumeX, Wrench, X } from "lucide-react";
+import { FlagTriangleRight, Layers, LocateFixed, Navigation, Pencil, Volume2, VolumeX, Wrench, X } from "lucide-react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 import BottomSheet from "@/components/map/BottomSheet";
@@ -14,6 +14,8 @@ import type { FocusRequest } from "@/components/map/FortalezaMap";
 import HazardAlertCard from "@/components/map/HazardAlertCard";
 import HazardIcon from "@/components/map/HazardIcon";
 import MapHud from "@/components/map/MapHud";
+import LaneEditor from "@/components/map/LaneEditor";
+import type { EditorMode } from "@/components/map/LaneEditor";
 import NavBubble from "@/components/map/NavBubble";
 import NavigationPanel, { ManeuverBanner } from "@/components/map/NavigationPanel";
 import ReportObstacleModal from "@/components/map/ReportObstacleModal";
@@ -66,6 +68,10 @@ export default function MapPage() {
     queryFn: () => apiGet<Shop[]>("/shops"),
     refetchInterval: 120000,
   });
+  // conta dev: desenhar/apagar ciclovias e ciclofaixas
+  const [editorMode, setEditorMode] = useState<EditorMode>("off");
+  const [drawPoints, setDrawPoints] = useState<[number, number][]>([]);
+  const [eraseTarget, setEraseTarget] = useState<BikeLane | null>(null);
   const [showShops, setShowShops] = useState(true);
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -157,10 +163,14 @@ export default function MapPage() {
   }, [demoLane, ride]);
 
   const onPick = useCallback((lat: number, lng: number) => {
+    if (editorMode === "draw") {
+      setDrawPoints((p) => [...p, [lat, lng]]);
+      return;
+    }
     setPickMode(false);
     setReportCoords({ lat, lng });
     setModalOpen(true);
-  }, []);
+  }, [editorMode]);
 
   const onSelectShop = useCallback((shop: Shop) => {
     setTapPoint(null);
@@ -185,12 +195,13 @@ export default function MapPage() {
   const onTap = useCallback(
     (lat: number, lng: number) => {
       if (phase === "navigating" || phase === "arrived") return; // guiando: toque solto não deve atrapalhar
+      if (editorMode !== "off") return; // desenhando/apagando traçados: o toque não abre o cartão do ponto
       setSelected(null);
       setSelectedShop(null);
       setFollow(false);
       setTapPoint({ lat, lng });
     },
-    [phase],
+    [phase, editorMode],
   );
 
   const goToTapPoint = () => {
@@ -309,11 +320,13 @@ export default function MapPage() {
         fitRoute={phase === "preview"}
         destination={nav.destination}
         bottomInset={inset}
-        pickMode={pickMode}
+        pickMode={pickMode || editorMode === "draw"}
         onPick={onPick}
         onTap={onTap}
         tapPoint={tapPoint}
         onSelectObstacle={onSelectObstacle}
+        drawPoints={editorMode === "draw" ? drawPoints : undefined}
+        onSelectLane={editorMode === "erase" ? setEraseTarget : undefined}
         shops={showShops ? shops : undefined}
         onSelectShop={onSelectShop}
         focus={focus}
@@ -325,7 +338,7 @@ export default function MapPage() {
         {phase === "navigating" ? (
           <ManeuverBanner nav={nav} ride={ride} />
         ) : (
-          !pickMode && (
+          !pickMode && editorMode === "off" && (
             <MapHud
               ride={ride}
               hazards={watch.hazards}
@@ -346,6 +359,15 @@ export default function MapPage() {
           />
         )}
       </div>
+
+      <LaneEditor
+        mode={editorMode}
+        points={drawPoints}
+        onModeChange={setEditorMode}
+        onPointsChange={setDrawPoints}
+        eraseTarget={eraseTarget}
+        onEraseTargetChange={setEraseTarget}
+      />
 
       {/* Dica do modo "reportar" */}
       {pickMode && (
@@ -449,6 +471,23 @@ export default function MapPage() {
             <Wrench className={cn("h-4 w-4 text-sky-400", !showShops && "opacity-40")} />
             Borracharias e oficinas
           </button>
+          {user?.is_moderator && (
+            <button
+              type="button"
+              data-testid="lane-editor-open"
+              onClick={() => {
+                setEditorMode("draw");
+                setFiltersOpen(false);
+                setPickMode(false);
+                setTapPoint(null);
+                setSelected(null);
+                setSelectedShop(null);
+              }}
+              className="mt-1 flex w-full items-center gap-2 rounded-md border-t border-slate-800 px-2 py-2 text-left text-xs font-medium text-yellow-300 hover:bg-slate-800/50"
+            >
+              <Pencil className="h-4 w-4" /> Desenhar / apagar ciclovias
+            </button>
+          )}
           <div className="mt-2 border-t border-slate-800 pt-2 text-[10px] leading-relaxed text-slate-500">
             <span className="mr-1 inline-block h-0.5 w-5 bg-emerald-500 align-middle" /> ciclovia
             <span className="mx-1 ml-2 inline-block h-0.5 w-5 border-b-2 border-dashed border-sky-400 align-middle" /> ciclofaixa
